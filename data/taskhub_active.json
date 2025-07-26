@@ -1,0 +1,23 @@
+{
+  "tasks": [
+    {
+      "id": "task-f81ea245",
+      "name": "GPU加速点云处理算法研究",
+      "capability": "算法研究",
+      "parent_task_id": null,
+      "depends_on": [],
+      "category": "Feature",
+      "priority": "Medium",
+      "status": "pending",
+      "created_at": "2025-07-26T12:44:28.653Z",
+      "updated_at": "2025-07-26T12:44:28.653Z",
+      "history": [
+        {
+          "status": "pending",
+          "timestamp": "2025-07-26T12:44:28.653Z"
+        }
+      ]
+    }
+  ],
+  "agents": []
+}
