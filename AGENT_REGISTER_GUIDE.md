@@ -7,13 +7,20 @@
 
 ### 1. 首次注册代理
 
-```python
+在使用`agent_register`之前，需要设置环境变量：
+- `AGENT_ID`: 代理的唯一标识符
+- `AGENT_NAME`: 代理的显示名称
+
+``python
+import os
 from src.tools.taskhub import agent_register, AgentRegisterParams
 
-# 创建注册参数
+# 设置环境变量
+os.environ['AGENT_ID'] = "your-agent-id"
+os.environ['AGENT_NAME'] = "你的代理名称"
+
+# 创建注册参数（不包含agent_id和name）
 params = AgentRegisterParams(
-    agent_id="your-agent-id",  # 唯一标识符
-    name="你的代理名称",       # 显示名称
     capabilities=["python", "javascript", "web-development"],  # 能力列表
     capability_levels={
         "python": 8,          # 每项能力的等级 (1-10)
@@ -32,10 +39,11 @@ print(result)
 如果代理已存在，`agent_register` 会自动更新其能力信息：
 
 ```python
-# 更新代理能力
+# 更新代理能力（仍需要设置环境变量）
+os.environ['AGENT_ID'] = "your-agent-id"
+os.environ['AGENT_NAME'] = "更新的代理名称"
+
 update_params = AgentRegisterParams(
-    agent_id="your-agent-id",
-    name="更新的代理名称",     # 可以更新名称
     capabilities=["python", "javascript", "rust", "machine-learning"],  # 新增能力
     capability_levels={
         "python": 9,          # 提升等级

@@ -11,7 +11,10 @@ from mcp.server.models import InitializationOptions
 from mcp.types import Tool
 import mcp.types as types
 
-from .tools.taskhub import task_list, task_claim, report_submit, task_publish, task_delete, report_evaluate, task_archive, task_suggest_agents, agent_register
+from .tools.taskhub import (
+    task_list, task_claim, report_submit, report_list, task_publish, 
+    task_delete, report_evaluate, task_archive, task_suggest_agents, agent_register
+)
 from .utils.config import config
 
 # 创建MCP服务器实例
@@ -200,18 +203,10 @@ async def handle_list_tools() -> list[Tool]:
         ),
         Tool(
             name="agent_register",
-            description="代理注册功能，用于代理首次进入时声明其能力",
+            description="代理注册功能，用于代理首次进入时声明其能力。agent_id和name从环境变量获取",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "agent_id": {
-                        "type": "string",
-                        "description": "代理的唯一标识符"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "代理的显示名称"
-                    },
                     "capabilities": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -223,7 +218,36 @@ async def handle_list_tools() -> list[Tool]:
                         "additionalProperties": {"type": "integer"}
                     }
                 },
-                "required": ["agent_id", "name", "capabilities", "capability_levels"]
+                "required": ["capabilities", "capability_levels"]
+            }
+        ),
+        Tool(
+            name="report_list",
+            description="获取报告列表，支持按任务ID、代理ID和状态筛选，包含评价结果",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "按任务ID筛选"
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "按代理ID筛选"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "按状态筛选：pending, submitted, reviewed",
+                        "enum": ["pending", "submitted", "reviewed"]
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "返回结果数量限制",
+                        "default": 100,
+                        "minimum": 1,
+                        "maximum": 1000
+                    }
+                }
             }
         )
     ]
@@ -251,6 +275,11 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
             params = ReportSubmitParams(**arguments)
             result = await report_submit(params)
             return [types.TextContent(type="text", text=str(result))]
+        elif name == "report_list":
+            from .tools.taskhub import ReportListParams
+            params = ReportListParams(**arguments)
+            result = await report_list(params)
+            return [types.TextContent(type="text", text=str(result))]
         elif name == "task_delete":
             from .tools.taskhub import TaskDeleteParams
             params = TaskDeleteParams(**arguments)
@@ -272,7 +301,15 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
             result = await task_suggest_agents(params)
             return [types.TextContent(type="text", text=str(result))]
         elif name == "agent_register":
+            import os
             from .tools.taskhub import AgentRegisterParams
+            # 检查环境变量
+            agent_id = os.getenv('AGENT_ID')
+            agent_name = os.getenv('AGENT_NAME')
+            
+            if not agent_id or not agent_name:
+                return [types.TextContent(type="text", text="错误: AGENT_ID和AGENT_NAME环境变量必须设置")]
+            
             params = AgentRegisterParams(**arguments)
             result = await agent_register(params)
             return [types.TextContent(type="text", text=str(result))]

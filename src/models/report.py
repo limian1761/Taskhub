@@ -36,3 +36,12 @@ class ReportSubmitParams(BaseModel):
     status: str = Field(..., description="任务状态")
     details: Optional[str] = Field(None, description="报告详情")
     result: Optional[str] = Field(None, description="执行结果")
+
+
+class ReportListParams(BaseModel):
+    """获取报告列表的参数模型"""
+    
+    task_id: Optional[str] = Field(None, description="按任务ID筛选")
+    agent_id: Optional[str] = Field(None, description="按代理ID筛选")
+    status: Optional[str] = Field(None, description="按状态筛选：pending, submitted, reviewed")
+    limit: Optional[int] = Field(100, description="返回结果数量限制", ge=1, le=1000)

@@ -18,6 +18,42 @@
 
 ## 快速开始
 
+### 数据存储
+
+所有数据默认存储在当前工作目录下的 `data` 文件夹中：
+
+```
+data/
+  ├── agents.json  # 代理数据
+  ├── tasks.json   # 任务数据
+  ├── tasks.db     # SQLite任务数据库
+  └── reports.db   # SQLite报告数据库
+```
+
+你可以通过以下两种方式自定义数据存储位置：
+
+1. 使用环境变量（推荐）：
+```bash
+# Windows
+set TASKHUB_DATA_DIR=D:\taskhub\data
+
+# Linux/Mac
+export TASKHUB_DATA_DIR=/path/to/data
+```
+
+2. 修改配置文件 `configs/config.json` 中的 `storage.data_dir` 配置项。
+
+> 注意：环境变量的优先级高于配置文件。
+
+支持的环境变量：
+- `TASKHUB_DATA_DIR`: 数据存储目录
+- `TASKHUB_HOST`: 服务器主机地址
+- `TASKHUB_PORT`: 服务器端口
+- `TASKHUB_TRANSPORT`: 传输方式 (stdio/sse)
+- `TASKHUB_LEASE_DURATION`: 默认租约时长（秒）
+- `TASKHUB_MAX_LEASE`: 最大租约时长（秒）
+- `TASKHUB_CLEANUP_INTERVAL`: 清理间隔（秒）
+
 ### 安装依赖
 
 ```bash
@@ -137,7 +173,9 @@ python -m src.server --transport stdio
 - `name`: 任务名称
 - `details`: 任务详情
 - `capability`: 所需能力
-- `depends_on` (可选): 依赖任务ID列表
+- `created_by`: 创建者ID（必填）
+- `depends_on`: 依赖任务ID列表（可选）
+- `candidates`: 候选代理ID列表（可选）
 
 **示例:**
 ```json
@@ -259,16 +297,22 @@ python -m src.server --transport stdio
 代理首次注册，声明自身能力和信息。
 
 **参数:**
-- `agent_id`: 代理唯一标识
-- `name`: 代理名称
 - `capabilities`: 能力列表
 - `capability_levels` (可选): 能力等级映射
 
+**注意:** `agent_id`和`name`必须从环境变量获取，不再支持参数传入
+
 **示例:**
+
+**步骤1：设置环境变量**
+```bash
+export AGENT_ID=code-review-agent-001
+export AGENT_NAME="代码审查专家"
+```
+
+**步骤2：注册代理（无需提供agent_id和name）**
 ```json
 {
-  "agent_id": "agent-001",
-  "name": "代码分析专家",
   "capabilities": ["python", "javascript", "code_review"],
   "capability_levels": {
     "python": 8,
@@ -277,6 +321,27 @@ python -m src.server --transport stdio
   }
 }
 ```
+
+**环境变量使用（必须）:**
+
+代理注册现在**必须**通过环境变量配置，不再支持参数传入。
+
+**必需环境变量:**
+- `AGENT_ID`: 代理唯一标识符
+- `AGENT_NAME`: 代理显示名称
+
+**快速设置:**
+```bash
+export AGENT_ID=my-special-agent-001
+export AGENT_NAME="智能代码助手"
+```
+
+**详细配置指南:** 请参考 [ENV_SETUP.md](./ENV_SETUP.md) 文件，其中包含：
+- Windows/Linux/macOS 系统配置方法
+- Docker 容器配置
+- Python 虚拟环境配置
+- VS Code 开发环境配置
+- 故障排除指南
 
 **返回:**
 注册成功返回代理信息，如果代理已存在则更新信息。
@@ -440,3 +505,28 @@ spec:
 ## 许可证
 
 MIT License - 详见 [LICENSE](LICENSE) 文件
+
+# 客户端配置
+```json
+{
+  "mcpServers": {
+    "taskhub": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "C:\\Users\\lichao\\OneDrive\\dev\\Taskhub",
+        "run",
+        "python",
+        "-m",
+        "src.server",
+        "--transport",
+        "stdio"
+      ],
+      "env": {
+        "AGENT_ID": "KIMI",
+        "AGENT_NAME": "KIMI"
+      }
+    }
+  }
+}
+```

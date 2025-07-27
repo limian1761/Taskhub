@@ -1,16 +1,17 @@
-import uuid
+import os
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 from src.models.task import Task
 from src.models.agent import Agent
-from src.models.report import ReportSubmitParams, Report
+from src.models.report import ReportSubmitParams, Report, ReportListParams
 from src.storage.sqlite_store import SQLiteStore
+from src.utils.id_generator import IDGenerator
 
 
 # 全局存储实例
-store = SQLiteStore(data_dir="data")
+store = SQLiteStore()
 
 
 class TaskListParams(BaseModel):
@@ -42,7 +43,7 @@ class TaskPublishParams(BaseModel):
     capability: str = Field(..., description="所需能力")
     depends_on: List[str] = Field(default_factory=list, description="依赖任务ID列表")
     parent_task_id: Optional[str] = Field(None, description="父任务ID")
-    created_by: Optional[str] = Field(None, description="任务创建者ID")
+    created_by: str = Field(..., description="任务创建者ID")
     candidates: List[str] = Field(default_factory=list, description="候选代理ID列表")
 
 
@@ -74,8 +75,6 @@ class TaskSuggestParams(BaseModel):
 
 class AgentRegisterParams(BaseModel):
     """agent_register工具参数"""
-    agent_id: str = Field(..., description="代理唯一标识")
-    name: str = Field(..., description="代理名称")
     capabilities: List[str] = Field(..., description="代理能力列表")
     capability_levels: Dict[str, int] = Field(default_factory=dict, description="能力等级映射")
 
@@ -168,7 +167,7 @@ async def task_claim(params: TaskClaimParams) -> Dict[str, Any]:
         return {"success": False, "error": "代理不在任务的候选者列表中"}
     
     # 生成租约
-    lease_id = str(uuid.uuid4())
+    lease_id = IDGenerator.generate_lease_id()
     lease_expires_at = now + timedelta(minutes=params.lease_duration_minutes)
     
     # 更新任务
@@ -227,7 +226,7 @@ async def report_submit(params: ReportSubmitParams) -> Dict[str, Any]:
         return {"success": False, "error": "任务租约已过期"}
     
     # 创建报告
-    report_id = str(uuid.uuid4())
+    report_id = IDGenerator.generate_report_id()
     report = Report(
         id=report_id,
         task_id=params.task_id,
@@ -444,7 +443,7 @@ async def task_publish(params: TaskPublishParams) -> Dict[str, Any]:
     Returns:
         创建结果，包含任务ID和任务信息
     """
-    task_id = str(uuid.uuid4())
+    task_id = IDGenerator.generate_task_id()
 
     task = Task(
         id=task_id,
@@ -619,23 +618,33 @@ async def agent_register(params: AgentRegisterParams) -> Dict[str, Any]:
     Returns:
         注册结果，包含成功状态和代理信息
     """
+    # 强制从环境变量获取Agent ID和Name
+    agent_id = os.getenv('AGENT_ID')
+    if not agent_id:
+        return {"success": False, "error": "环境变量AGENT_ID未设置"}
+    
+    name = os.getenv('AGENT_NAME')
+    if not name:
+        return {"success": False, "error": "环境变量AGENT_NAME未设置"}
+    
     # 检查代理是否已存在
-    existing_agent = store.get_agent(params.agent_id)
+    existing_agent = store.get_agent(agent_id)
     
     if existing_agent:
-        # 更新现有代理的能力信息
+        # 更新现有代理的能力信息（不更新声誉值）
         updates = {
+            "name": name,
             "capabilities": params.capabilities,
             "capability_levels": params.capability_levels,
             "updated_at": datetime.utcnow().isoformat()
         }
-        success = store.update_agent(params.agent_id, **updates)
+        success = store.update_agent(agent_id, **updates)
         
         if success:
-            updated_agent = store.get_agent(params.agent_id)
+            updated_agent = store.get_agent(agent_id)
             return {
                 "success": True,
-                "agent_id": params.agent_id,
+                "agent_id": agent_id,
                 "message": "代理信息已更新",
                 "agent": updated_agent.model_dump(),
                 "is_new": False
@@ -645,8 +654,8 @@ async def agent_register(params: AgentRegisterParams) -> Dict[str, Any]:
     
     # 创建新代理
     agent = Agent(
-        id=params.agent_id,
-        name=params.name,
+        id=agent_id,
+        name=name,
         capabilities=params.capabilities,
         capability_levels=params.capability_levels,
         reputation=0,  # 新代理初始声望为0
@@ -661,7 +670,7 @@ async def agent_register(params: AgentRegisterParams) -> Dict[str, Any]:
     if success:
         return {
             "success": True,
-            "agent_id": params.agent_id,
+            "agent_id": agent_id,
             "message": "代理注册成功",
             "agent": agent.model_dump(),
             "is_new": True
@@ -671,10 +680,43 @@ async def agent_register(params: AgentRegisterParams) -> Dict[str, Any]:
 
 
 # 工具注册映射
+async def report_list(params: ReportListParams) -> Dict[str, Any]:
+    """
+    获取报告列表
+    
+    根据提供的过滤条件返回报告列表。支持按任务ID、代理ID和状态筛选。
+    
+    Args:
+        params: 包含过滤条件的参数对象
+        
+    Returns:
+        包含报告列表的结果字典
+    """
+    try:
+        reports = store.list_reports(
+            task_id=params.task_id,
+            agent_id=params.agent_id,
+            status=params.status,
+            limit=params.limit
+        )
+        
+        return {
+            "success": True,
+            "reports": [report.dict() for report in reports]
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"获取报告列表失败: {str(e)}"
+        }
+
+
 taskhub_tools = {
     "task_list": task_list,
     "task_claim": task_claim,
     "report_submit": report_submit,
+    "report_list": report_list,
     "task_publish": task_publish,
     "task_delete": task_delete,
     "report_evaluate": report_evaluate,

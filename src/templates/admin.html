@@ -6,24 +6,28 @@
     <title>Taskhub Admin Panel</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f4f7f9;
             color: #333;
         }
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: auto;
             background: #fff;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
-        h1 {
-            margin-top: 0;
+        h1, h2 {
             color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 20px;
         }
+        h1 { margin-top: 0; }
+        .section { margin-bottom: 30px; }
         .controls {
             margin-bottom: 20px;
             display: flex;
@@ -34,6 +38,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            margin-bottom: 20px;
         }
         .status-indicator {
             width: 12px;
@@ -45,7 +50,7 @@
         .status-indicator.stopped { background-color: #dc3545; }
         .status-text { font-weight: bold; }
         button {
-            padding: 10px 15px;
+            padding: 8px 12px;
             border: none;
             border-radius: 5px;
             color: #fff;
@@ -59,29 +64,48 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
-        button.stop { background-color: #dc3545; }
-        button.stop:hover { background-color: #c82333; }
-        button.restart { background-color: #ffc107; color: #212529; }
-        button.restart:hover { background-color: #e0a800; }
-        .logs {
-            margin-top: 20px;
-        }
-        h2 {
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-            margin-top: 0;
-        }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-warning { background-color: #ffc107; color: #212529; }
+        .btn-warning:hover { background-color: #e0a800; }
+        .btn-info { background-color: #17a2b8; }
+        .btn-info:hover { background-color: #138496; }
+
         #log-container {
             background-color: #2c3e50;
             color: #ecf0f1;
             padding: 15px;
             border-radius: 5px;
-            height: 400px;
+            height: 300px;
             overflow-y: auto;
             white-space: pre-wrap;
             font-family: "Courier New", Courier, monospace;
             font-size: 13px;
             line-height: 1.5;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .word-break {
+            word-break: break-all;
         }
     </style>
 </head>
@@ -89,112 +113,283 @@
     <div class="container">
         <h1>Taskhub Admin Panel</h1>
 
-        <div class="status">
-            <span>Service Status:</span>
-            <div id="status-indicator" class="status-indicator"></div>
-            <span id="status-text">Unknown</span>
+        <!-- Service Control Section -->
+        <div class="section">
+            <h2>Service Control</h2>
+            <div class="status">
+                <span>Service Status:</span>
+                <div id="status-indicator" class="status-indicator"></div>
+                <span id="status-text">Unknown</span>
+            </div>
+            <div class="controls">
+                <button id="start-btn">Start</button>
+                <button id="stop-btn" class="btn-danger">Stop</button>
+                <button id="restart-btn" class="btn-warning">Restart</button>
+            </div>
         </div>
 
-        <div class="controls">
-            <button id="start-btn">Start</button>
-            <button id="stop-btn" class="stop">Stop</button>
-            <button id="restart-btn" class="restart">Restart</button>
+        <!-- Data Management Sections -->
+        <div class="section">
+            <div class="section-header">
+                <h2>Agents</h2>
+                <button id="refresh-agents-btn" class="btn-info">Refresh</button>
+            </div>
+            <table id="agents-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Reputation</th>
+                        <th>Capabilities</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
-        <div class="logs">
+        <div class="section">
+            <div class="section-header">
+                <h2>Tasks</h2>
+                <button id="refresh-tasks-btn" class="btn-info">Refresh</button>
+            </div>
+            <table id="tasks-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Capability</th>
+                        <th>Assignee</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <h2>Reports</h2>
+                <button id="refresh-reports-btn" class="btn-info">Refresh</button>
+            </div>
+            <table id="reports-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Task ID</th>
+                        <th>Agent ID</th>
+                        <th>Status</th>
+                        <th>Result</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Logs Section -->
+        <div class="section">
             <h2>Logs</h2>
             <div id="log-container"></div>
         </div>
     </div>
 
     <script>
-        const statusIndicator = document.getElementById('status-indicator');
-        const statusText = document.getElementById('status-text');
-        const startBtn = document.getElementById('start-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const restartBtn = document.getElementById('restart-btn');
-        const logContainer = document.getElementById('log-container');
-
-        let socket;
-
-        function connectWebSocket() {
-            // Ensure the WebSocket protocol is correct (ws or wss)
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${wsProtocol}//${window.location.host}/ws/logs`;
-
-            socket = new WebSocket(wsUrl);
-
-            socket.onopen = function(event) {
-                console.log("WebSocket connection established.");
-                logContainer.innerHTML += '<div>[Admin] WebSocket connection established.</div>';
-            };
-
-            socket.onmessage = function(event) {
-                // An empty message is a ping, ignore it.
-                if (event.data === "") return;
-                logContainer.innerHTML += event.data.replace(/\n/g, '<br>');
-                logContainer.scrollTop = logContainer.scrollHeight; // Auto-scroll
-            };
-
-            socket.onclose = function(event) {
-                console.log("WebSocket connection closed.");
-                logContainer.innerHTML += '<div>[Admin] WebSocket connection closed. Reconnecting in 3 seconds...</div>';
-                setTimeout(connectWebSocket, 3000); // Attempt to reconnect
-            };
-
-            socket.onerror = function(error) {
-                console.error("WebSocket error:", error);
-                logContainer.innerHTML += '<div>[Admin] WebSocket error.</div>';
-            };
-        }
-
-
-        async function apiRequest(endpoint, method = 'POST') {
-            try {
-                const response = await fetch(`/api/${endpoint}`, { method });
-                if (!response.ok) {
-                    const error = await response.json();
-                    alert(`Error: ${error.detail}`);
-                }
-                updateStatus();
-            } catch (error) {
-                console.error(`Failed to ${endpoint} service:`, error);
-                alert(`Failed to contact server. Is the admin panel running?`);
-            }
-        }
-
-        function updateButtonState(status) {
-            const isRunning = status === 'running';
-            startBtn.disabled = isRunning;
-            stopBtn.disabled = !isRunning;
-            restartBtn.disabled = !isRunning;
-        }
-
-        async function updateStatus() {
-            try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
-                statusText.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
-                statusIndicator.className = `status-indicator ${data.status}`;
-                updateButtonState(data.status);
-            } catch (error) {
-                console.error('Failed to get status:', error);
-                statusText.textContent = 'Offline';
-                statusIndicator.className = 'status-indicator stopped';
-                updateButtonState('stopped');
-            }
-        }
-
-        startBtn.addEventListener('click', () => apiRequest('start'));
-        stopBtn.addEventListener('click', () => apiRequest('stop'));
-        restartBtn.addEventListener('click', () => apiRequest('restart'));
-
-        // Initial status check and setup WebSocket
         document.addEventListener('DOMContentLoaded', () => {
-            updateStatus();
-            connectWebSocket();
-            // Periodically update status in case of unexpected shutdown
-            setInterval(updateStatus, 5000);
+            // --- Element Selectors ---
+            const statusIndicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const restartBtn = document.getElementById('restart-btn');
+            const logContainer = document.getElementById('log-container');
+
+            // --- Data Management Elements ---
+            const refreshAgentsBtn = document.getElementById('refresh-agents-btn');
+            const agentsTableBody = document.querySelector('#agents-table tbody');
+            const refreshTasksBtn = document.getElementById('refresh-tasks-btn');
+            const tasksTableBody = document.querySelector('#tasks-table tbody');
+            const refreshReportsBtn = document.getElementById('refresh-reports-btn');
+            const reportsTableBody = document.querySelector('#reports-table tbody');
+
+            // --- WebSocket ---
+            let socket;
+            function connectWebSocket() {
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${wsProtocol}//${window.location.host}/ws/logs`;
+                socket = new WebSocket(wsUrl);
+
+                socket.onopen = () => logContainer.innerHTML += '<div>[Admin] WebSocket connection established.</div>';
+                socket.onmessage = (event) => {
+                    if (event.data === "") return; // Ignore pings
+                    logContainer.innerHTML += event.data.replace(/\n/g, '<br>');
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                };
+                socket.onclose = () => {
+                    logContainer.innerHTML += '<div>[Admin] WebSocket connection closed. Reconnecting in 3s...</div>';
+                    setTimeout(connectWebSocket, 3000);
+                };
+                socket.onerror = () => logContainer.innerHTML += '<div>[Admin] WebSocket error.</div>';
+            }
+
+            // --- API Helpers ---
+            async function apiRequest(endpoint, method = 'POST', body = null) {
+                try {
+                    const options = { method };
+                    if (body) {
+                        options.headers = { 'Content-Type': 'application/json' };
+                        options.body = JSON.stringify(body);
+                    }
+                    const response = await fetch(`/api/${endpoint}`, options);
+                    if (!response.ok) {
+                        const error = await response.json();
+                        alert(`Error: ${error.detail || 'Unknown error'}`);
+                        return null;
+                    }
+                    return response.status === 204 ? true : await response.json();
+                } catch (error) {
+                    console.error(`API request failed for ${method} /api/${endpoint}:`, error);
+                    alert('Failed to contact server. Is the admin panel running?');
+                    return null;
+                }
+            }
+
+            // --- Service Control Logic ---
+            async function updateStatus() {
+                const data = await apiRequest('status', 'GET');
+                if (data) {
+                    const isRunning = data.status === 'running';
+                    statusText.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+                    statusIndicator.className = `status-indicator ${data.status}`;
+                    startBtn.disabled = isRunning;
+                    stopBtn.disabled = !isRunning;
+                    restartBtn.disabled = !isRunning;
+                } else {
+                    statusText.textContent = 'Offline';
+                    statusIndicator.className = 'status-indicator stopped';
+                    [startBtn, stopBtn, restartBtn].forEach(btn => btn.disabled = true);
+                    startBtn.disabled = false;
+                }
+            }
+            startBtn.addEventListener('click', () => apiRequest('start').then(updateStatus));
+            stopBtn.addEventListener('click', () => apiRequest('stop').then(updateStatus));
+            restartBtn.addEventListener('click', () => apiRequest('restart').then(updateStatus));
+
+            // --- Data Management Logic ---
+            const renderTable = (tbody, data, columns, actions) => {
+                tbody.innerHTML = '';
+                if (!data || data.length === 0) {
+                    const row = tbody.insertRow();
+                    const cell = row.insertCell();
+                    cell.colSpan = columns.length + 1;
+                    cell.textContent = 'No data available.';
+                    cell.style.textAlign = 'center';
+                    return;
+                }
+                data.forEach(item => {
+                    const row = tbody.insertRow();
+                    columns.forEach(col => {
+                        const cell = row.insertCell();
+                        cell.textContent = typeof col.render === 'function' ? col.render(item) : item[col.key];
+                        if (col.class) cell.classList.add(col.class);
+                    });
+                    const actionCell = row.insertCell();
+                    actions.forEach(action => {
+                        const button = document.createElement('button');
+                        button.textContent = action.label;
+                        button.className = action.class;
+                        button.disabled = action.disabled === true;
+                        button.onclick = () => action.handler(item.id);
+                        actionCell.appendChild(button);
+                    });
+                });
+            };
+
+            // Agents
+            async function fetchAndRenderAgents() {
+                const agents = await apiRequest('agents', 'GET');
+                renderTable(agentsTableBody, agents,
+                    [
+                        { key: 'id', class: 'word-break' },
+                        { key: 'name' },
+                        { key: 'reputation' },
+                        { key: 'capabilities', render: item => item.capabilities.join(', ') },
+                        { key: 'status' }
+                    ],
+                    [
+                        { label: 'Delete', class: 'btn-danger', handler: deleteAgent, disabled: false }
+                    ]
+                );
+            }
+            async function deleteAgent(id) {
+                if (confirm(`Are you sure you want to delete agent ${id}?`)) {
+                    await apiRequest(`agents/${id}`, 'DELETE');
+                    fetchAndRenderAgents();
+                }
+            }
+            refreshAgentsBtn.addEventListener('click', fetchAndRenderAgents);
+
+            // Tasks
+            async function fetchAndRenderTasks() {
+                const tasks = await apiRequest('tasks', 'GET');
+                renderTable(tasksTableBody, tasks,
+                    [
+                        { key: 'id', class: 'word-break' },
+                        { key: 'name' },
+                        { key: 'status' },
+                        { key: 'capability' },
+                        { key: 'assignee', class: 'word-break' }
+                    ],
+                    [
+                        { label: 'Delete', class: 'btn-danger', handler: deleteTask }
+                    ]
+                );
+            }
+            async function deleteTask(id) {
+                if (confirm(`Are you sure you want to delete task ${id}?`)) {
+                    await apiRequest(`tasks/${id}`, 'DELETE');
+                    fetchAndRenderTasks();
+                }
+            }
+            refreshTasksBtn.addEventListener('click', fetchAndRenderTasks);
+
+            // Reports
+            async function fetchAndRenderReports() {
+                const reports = await apiRequest('reports', 'GET');
+                renderTable(reportsTableBody, reports,
+                    [
+                        { key: 'id', class: 'word-break' },
+                        { key: 'task_id', class: 'word-break' },
+                        { key: 'agent_id', class: 'word-break' },
+                        { key: 'status' },
+                        { key: 'result' }
+                    ],
+                    [
+                        { label: 'Delete', class: 'btn-danger', handler: deleteReport }
+                    ]
+                );
+            }
+            async function deleteReport(id) {
+                if (confirm(`Are you sure you want to delete report ${id}?`)) {
+                    await apiRequest(`reports/${id}`, 'DELETE');
+                    fetchAndRenderReports();
+                }
+            }
+            refreshReportsBtn.addEventListener('click', fetchAndRenderReports);
+
+            // --- Initial Load ---
+            function initialLoad() {
+                updateStatus();
+                connectWebSocket();
+                fetchAndRenderAgents();
+                fetchAndRenderTasks();
+                fetchAndRenderReports();
+                setInterval(updateStatus, 10000); // Poll for service status less frequently
+            }
+
+            initialLoad();
         });
     </script>
 </body>

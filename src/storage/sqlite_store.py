@@ -4,21 +4,66 @@ import uuid
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 from datetime import datetime
+import os
 
 from src.models.task import Task
 from src.models.agent import Agent
 from src.models.report import Report
+from src.utils.config import Config
 
 
 class SQLiteStore:
     """统一的SQLite存储实现，管理任务、代理和报告"""
     
-    def __init__(self, data_dir: str = "data"):
-        self.data_dir = Path(data_dir)
+    def __init__(self, data_dir: Optional[str] = None):
+        # 获取工作目录
+        self.workspace_dir = Path(os.getcwd())
+        
+        # 如果没有指定data_dir，从配置获取
+        if data_dir is None:
+            config = Config()
+            data_dir = config.get("storage.data_dir", "data")
+            
+        # 确保data_dir是相对于工作目录的
+        self.data_dir = self.workspace_dir / data_dir
         self.data_dir.mkdir(exist_ok=True)
         
         self.tasks_db = self.data_dir / "tasks.db"
         self.reports_db = self.data_dir / "reports.db"
+
+    def list_reports(self, task_id: Optional[str] = None, agent_id: Optional[str] = None, 
+                    status: Optional[str] = None, limit: int = 100) -> List[Report]:
+        """获取报告列表，支持按任务ID、代理ID和状态筛选"""
+        query = "SELECT * FROM reports WHERE 1=1"
+        params = []
+        
+        if task_id:
+            query += " AND task_id = ?"
+            params.append(task_id)
+            
+        if agent_id:
+            query += " AND agent_id = ?"
+            params.append(agent_id)
+            
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+            
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        
+        with sqlite3.connect(self.reports_db) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(query, params).fetchall()
+            
+            reports = []
+            for row in rows:
+                data = dict(row)
+                if data["evaluation"]:
+                    data["evaluation"] = json.loads(data["evaluation"])
+                reports.append(Report(**data))
+                
+            return reports
         
         self._init_databases()
     
@@ -305,16 +350,29 @@ class SQLiteStore:
         try:
             with sqlite3.connect(self.tasks_db) as conn:
                 from datetime import datetime, timezone
+                import json
                 updates['updated_at'] = datetime.now(timezone.utc).isoformat()
                 
                 # 处理current_tasks的JSON序列化
                 if 'current_tasks' in updates and isinstance(updates['current_tasks'], list):
                     updates['current_tasks'] = json.dumps(updates['current_tasks'])
                 
+                # 处理capability_levels的JSON序列化
+                if 'capability_levels' in updates and isinstance(updates['capability_levels'], dict):
+                    updates['capability_levels'] = json.dumps(updates['capability_levels'])
+                elif 'capabilities' in updates and isinstance(updates['capabilities'], list):
+                    # 如果提供了capabilities但没有提供capability_levels，保持原有等级
+                    pass
+                
+                # 处理capabilities的JSON序列化
+                if 'capabilities' in updates and isinstance(updates['capabilities'], list):
+                    updates['capabilities'] = json.dumps(updates['capabilities'])
+                
                 set_clause = ', '.join([f'{k} = ?' for k in updates.keys()])
                 values = list(updates.values())
                 values.append(agent_id)
                 
+                print(f"更新代理SQL: UPDATE agents SET {set_clause} WHERE id = ?, values: {values}")
                 cursor = conn.execute(
                     f'UPDATE agents SET {set_clause} WHERE id = ?',
                     values
@@ -324,6 +382,8 @@ class SQLiteStore:
                 return cursor.rowcount > 0
         except Exception as e:
             print(f"更新代理失败: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def get_all_agent_ids(self) -> List[str]:
@@ -331,6 +391,17 @@ class SQLiteStore:
         with sqlite3.connect(self.tasks_db) as conn:
             cursor = conn.execute('SELECT id FROM agents')
             return [row[0] for row in cursor.fetchall()]
+
+    def delete_agent(self, agent_id: str) -> bool:
+        """删除代理"""
+        try:
+            with sqlite3.connect(self.tasks_db) as conn:
+                cursor = conn.execute('DELETE FROM agents WHERE id = ?', (agent_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"删除代理失败: {e}")
+            return False
     
     # Report相关操作
     def save_report(self, report: Report) -> bool:

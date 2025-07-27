@@ -30,6 +30,27 @@
 
         <!-- 统计卡片 -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">报告评价统计</h2>
+                <div class="flex space-x-2">
+                    <button @click="filterReports('all')" 
+                            :class="{'bg-blue-500 text-white': reportFilter === 'all', 'bg-gray-200 text-gray-700': reportFilter !== 'all'}"
+                            class="px-3 py-1 rounded-md text-sm">
+                        全部
+                    </button>
+                    <button @click="filterReports('reviewed')"
+                            :class="{'bg-blue-500 text-white': reportFilter === 'reviewed', 'bg-gray-200 text-gray-700': reportFilter !== 'reviewed'}"
+                            class="px-3 py-1 rounded-md text-sm">
+                        已评价
+                    </button>
+                    <button @click="filterReports('pending')"
+                            :class="{'bg-blue-500 text-white': reportFilter === 'pending', 'bg-gray-200 text-gray-700': reportFilter !== 'pending'}"
+                            class="px-3 py-1 rounded-md text-sm">
+                        待评价
+                    </button>
+                </div>
+            </div>
+            
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div class="bg-white rounded-lg shadow p-6">
                     <div class="flex items-center">
@@ -237,7 +258,8 @@
                         await Promise.all([
                             this.fetchTasks(),
                             this.fetchAgents(),
-                            this.fetchStats()
+                            this.fetchStats(),
+                            this.fetchReports()
                         ]);
                         this.lastUpdate = new Date().toLocaleTimeString();
                     } finally {
