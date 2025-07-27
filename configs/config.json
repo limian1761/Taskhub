@@ -1,0 +1,16 @@
+{
+  "server": {
+    "host": "localhost",
+    "port": 8000,
+    "transport": "stdio"
+  },
+  "storage": {
+    "type": "json",
+    "data_dir": "data"
+  },
+  "task": {
+    "default_lease_duration": 30,
+    "max_lease_duration": 120,
+    "cleanup_interval": 300
+  }
+}

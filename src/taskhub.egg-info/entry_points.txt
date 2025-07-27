@@ -1,0 +1,2 @@
+[console_scripts]
+taskhub = src.server:main

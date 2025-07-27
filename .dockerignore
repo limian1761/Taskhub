@@ -1,0 +1,10 @@
+# Common files and directories to ignore in a Docker build context.
+.git
+.gitignore
+.vscode
+*.md
+configs/
+test/
+scripts/
+Dockerfile
+docker-compose.yml

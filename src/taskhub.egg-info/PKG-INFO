@@ -1,3 +1,21 @@
+Metadata-Version: 2.4
+Name: taskhub
+Version: 2.0.0
+Summary: Taskhub MCP Server - 基于FastMCP的任务管理和代理协调服务器
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: mcp[cli]>=1.12.2
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: fastapi>=0.104.0
+Requires-Dist: uvicorn[standard]>=0.24.0
+Requires-Dist: jinja2>=3.1.0
+Requires-Dist: python-multipart>=0.0.6
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+Requires-Dist: black>=23.0.0; extra == "dev"
+Requires-Dist: ruff>=0.1.0; extra == "dev"
+
 # Taskhub MCP Server
 
 基于FastMCP的任务管理和代理协调服务器，支持多代理协作处理任务。
@@ -6,9 +24,6 @@
 
 - 🎯 **任务管理**: 创建、分配、更新和监控任务
 - 🤖 **代理协调**: 智能任务分配给合适的代理
-- 🧠 **智能推荐**: 基于能力和声望的任务匹配系统
-- ⭐ **声誉系统**: 任务评价和代理声望管理
-- 📦 **数据归档**: 自动任务归档和生命周期管理
 - 🔗 **依赖管理**: 支持任务间依赖关系
 - 📊 **状态跟踪**: 实时任务状态监控
 - 🔄 **租约机制**: 防止任务重复处理
@@ -130,8 +145,8 @@ python -m src.server --transport stdio
 }
 ```
 
-#### 2. task_publish
-发布新任务。
+#### 2. task_create
+创建新任务。
 
 **参数:**
 - `name`: 任务名称
@@ -164,22 +179,21 @@ python -m src.server --transport stdio
 }
 ```
 
-#### 4. report_submit
-提交任务报告。
+#### 4. task_update
+更新任务状态。
 
 **参数:**
 - `task_id`: 任务ID
-- `status`: 任务状态 (completed, failed)
-- `result`: 任务执行结果
-- `details` (可选): 任务执行过程的详细描述
+- `status`: 新状态 (pending, claimed, completed, failed)
+- `result` (可选): 执行结果
+- `error` (可选): 错误信息
 
 **示例:**
 ```json
 {
   "task_id": "task-001",
   "status": "completed",
-  "result": "分析完成，生成报告",
-  "details": "使用了pandas进行数据清洗，matplotlib进行可视化分析"
+  "result": "分析完成，生成报告"
 }
 ```
 
@@ -202,84 +216,6 @@ python -m src.server --transport stdio
 - 如果任务被其他任务依赖，且`force=false`，删除将失败
 - 如果任务被代理认领，删除时会自动从代理的当前任务中移除
 - 设置`force=true`可以强制删除有依赖关系的任务
-
-#### 6. report_evaluate
-评价任务报告。
-
-**参数:**
-- `report_id`: 报告ID
-- `score`: 评价分数 (0-100)
-- `reputation_change`: 声望值变化
-- `feedback` (可选): 评价反馈信息
-- `capability_updates` (可选): 能力等级更新
-
-**示例:**
-```json
-{
-  "report_id": "report-001",
-  "score": 95,
-  "reputation_change": 10,
-  "feedback": "任务完成质量很高，代码整洁，文档完整",
-  "capability_updates": {"python": 2, "devops": 1}
-}
-```
-
-#### 7. task_archive
-归档已完成的任务。
-
-**参数:**
-- `task_id`: 要归档的任务ID
-
-**示例:**
-```json
-{
-  "task_id": "task-001"
-}
-```
-
-#### 8. task_suggest_agents
-为代理推荐最匹配的任务，基于能力和声望排序。
-
-**参数:**
-- `agent_id`: 代理ID
-- `limit` (可选): 返回结果数量限制，默认10
-
-**示例:**
-```json
-{
-  "agent_id": "agent-001",
-  "limit": 5
-}
-```
-
-**返回:**
-返回按匹配度排序的任务列表，包含任务详情和匹配评分。
-
-#### 9. agent_register
-代理首次注册，声明自身能力和信息。
-
-**参数:**
-- `agent_id`: 代理唯一标识
-- `name`: 代理名称
-- `capabilities`: 能力列表
-- `capability_levels` (可选): 能力等级映射
-
-**示例:**
-```json
-{
-  "agent_id": "agent-001",
-  "name": "代码分析专家",
-  "capabilities": ["python", "javascript", "code_review"],
-  "capability_levels": {
-    "python": 8,
-    "javascript": 6,
-    "code_review": 7
-  }
-}
-```
-
-**返回:**
-注册成功返回代理信息，如果代理已存在则更新信息。
 
 ## 数据模型
 
