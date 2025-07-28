@@ -2,6 +2,7 @@ import sys
 import asyncio
 from pathlib import Path
 import argparse
+import os
 
 # 添加src目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -11,10 +12,7 @@ from mcp.server.models import InitializationOptions
 from mcp.types import Tool
 import mcp.types as types
 
-from .tools.taskhub import (
-    task_list, task_claim, report_submit, report_list, task_publish, 
-    task_delete, report_evaluate, task_archive, task_suggest_agents, agent_register
-)
+from .tools.taskhub import *
 from .utils.config import config
 
 # 创建MCP服务器实例
@@ -256,53 +254,43 @@ async def handle_list_tools() -> list[Tool]:
 async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     try:
         if name == "task_list":
-            from .tools.taskhub import TaskListParams
             params = TaskListParams(**arguments)
             result = await task_list(params)
             return [types.TextContent(type="text", text=str(result))]
         elif name == "task_publish":
-            from .tools.taskhub import TaskPublishParams
             params = TaskPublishParams(**arguments)
             result = await task_publish(params)
             return [types.TextContent(type="text", text=str(result))]
         elif name == "task_claim":
-            from .tools.taskhub import TaskClaimParams
             params = TaskClaimParams(**arguments)
             result = await task_claim(params)
             return [types.TextContent(type="text", text=str(result))]
         elif name == "report_submit":
-            from .tools.taskhub import ReportSubmitParams
             params = ReportSubmitParams(**arguments)
             result = await report_submit(params)
             return [types.TextContent(type="text", text=str(result))]
         elif name == "report_list":
-            from .tools.taskhub import ReportListParams
             params = ReportListParams(**arguments)
             result = await report_list(params)
             return [types.TextContent(type="text", text=str(result))]
         elif name == "task_delete":
-            from .tools.taskhub import TaskDeleteParams
             params = TaskDeleteParams(**arguments)
             result = await task_delete(params)
             return [types.TextContent(type="text", text=str(result))]
         elif name == "report_evaluate":
-            from .tools.taskhub import ReportEvaluateParams
             params = ReportEvaluateParams(**arguments)
             result = await report_evaluate(params)
             return [types.TextContent(type="text", text=str(result))]
         elif name == "task_archive":
-            from .tools.taskhub import TaskArchiveParams
             params = TaskArchiveParams(**arguments)
             result = await task_archive(params)
             return [types.TextContent(type="text", text=str(result))]
         elif name == "task_suggest_agents":
-            from .tools.taskhub import TaskSuggestParams
             params = TaskSuggestParams(**arguments)
             result = await task_suggest_agents(params)
             return [types.TextContent(type="text", text=str(result))]
         elif name == "agent_register":
             import os
-            from .tools.taskhub import AgentRegisterParams
             # 检查环境变量
             agent_id = os.getenv('AGENT_ID')
             agent_name = os.getenv('AGENT_NAME')
@@ -376,5 +364,9 @@ async def main():
                 )
             )
 
+def main():
+    app()
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
