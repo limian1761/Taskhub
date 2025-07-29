@@ -1,19 +1,14 @@
-import sys
 import asyncio
-from pathlib import Path
 import argparse
 import os
-
-# 添加src目录到Python路径
-sys.path.insert(0, str(Path(__file__).parent))
 
 from mcp.server import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
 from mcp.types import Tool
 import mcp.types as types
 
-from .tools.taskhub import *
-from .utils.config import config
+from taskhub.tools.taskhub import *
+from taskhub.utils.config import config
 
 # 创建MCP服务器实例
 server = Server("taskhub")
@@ -306,7 +301,7 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
     except Exception as e:
         return [types.TextContent(type="text", text=f"Error: {str(e)}")]
 
-async def main():
+def main():
     parser = argparse.ArgumentParser(description='Taskhub MCP Server - 任务管理和代理协调服务器')
     parser.add_argument(
         '--transport', 
@@ -332,11 +327,30 @@ async def main():
         try:
             from mcp.server.fastapi import serve_app
             print(f"Starting Taskhub MCP Server with SSE transport on {args.host}:{args.port}")
-            await serve_app(server, host=args.host, port=args.port)
+            asyncio.run(serve_app(server, host=args.host, port=args.port))
         except ImportError:
             print("Warning: FastAPI not available, falling back to stdio transport")
             from mcp.server.stdio import stdio_server
             print("Starting Taskhub MCP Server with stdio transport")
+            async def run_stdio():
+                async with stdio_server() as (read_stream, write_stream):
+                    await server.run(
+                        read_stream,
+                        write_stream,
+                        InitializationOptions(
+                            server_name="taskhub",
+                            server_version="2.0.0",
+                            capabilities=server.get_capabilities(
+                            notification_options=NotificationOptions(),
+                            experimental_capabilities={}
+                        )
+                        )
+                    )
+            asyncio.run(run_stdio())
+    else:
+        from mcp.server.stdio import stdio_server
+        print("Starting Taskhub MCP Server with stdio transport")
+        async def run_stdio():
             async with stdio_server() as (read_stream, write_stream):
                 await server.run(
                     read_stream,
@@ -344,28 +358,13 @@ async def main():
                     InitializationOptions(
                         server_name="taskhub",
                         server_version="2.0.0",
-                        capabilities=server.get_capabilities()
+                        capabilities=server.get_capabilities(
+                            notification_options=NotificationOptions(),
+                            experimental_capabilities={}
+                        )
                     )
                 )
-    else:
-        from mcp.server.stdio import stdio_server
-        print("Starting Taskhub MCP Server with stdio transport")
-        async with stdio_server() as (read_stream, write_stream):
-            await server.run(
-                read_stream,
-                write_stream,
-                InitializationOptions(
-                    server_name="taskhub",
-                    server_version="2.0.0",
-                    capabilities=server.get_capabilities(
-                        notification_options=NotificationOptions(),
-                        experimental_capabilities={}
-                    )
-                )
-            )
-
-def main():
-    app()
+        asyncio.run(run_stdio())
 
 
 if __name__ == "__main__":

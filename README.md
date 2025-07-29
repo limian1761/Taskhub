@@ -17,35 +17,36 @@ Taskhub是一个基于FastMCP的任务管理和代理协调服务器，专为支
 
 ## 快速开始
 
-### 数据存储
-
-所有数据默认存储在项目根目录下的 `data` 文件夹中。您可以通过设置 `TASKHUB_DATA_DIR` 环境变量来指定自定义的数据存储路径。
-
-```bash
-# Windows
-set TASKHUB_DATA_DIR=D:\taskhub\data
-
-# Linux/Mac
-export TASKHUB_DATA_DIR=/path/to/your/data
-```
+### 环境要求
+- Python 3.10+
+- [uv](https://github.com/astral-sh/uv) (推荐的包管理器)
 
 ### 安装
 
-建议使用 `uv` 进行依赖管理和环境隔离。
+1.  **克隆仓库**
+    ```bash
+    git clone https://github.com/your-repo/Taskhub.git
+    cd Taskhub
+    ```
 
-```bash
-# 安装项目及核心依赖
-uv pip install -e .
+2.  **安装依赖**
+    使用 `uv` 创建虚拟环境并安装依赖。项目配置为可编辑模式 (`-e`)，这意味着您对源代码的更改会立即生效。
+    ```bash
+    # 创建并激活虚拟环境
+    uv venv
+    source .venv/bin/activate  # Linux/macOS
+    .venv\Scripts\activate    # Windows
 
-# 安装开发环境依赖 (用于测试和代码格式化)
-uv pip install -e ".[dev]"
-```
+    # 安装项目及核心依赖
+    uv pip install -e .
+
+    # (可选) 安装开发依赖
+    uv pip install -e ".[dev]"
+    ```
 
 ### 启动服务
 
-**1. 启动MCP服务器 (后端)**
-
-在项目根目录下运行：
+直接运行开发脚本即可启动服务器。该脚本会处理所有必要的环境配置。
 
 ```bash
 # Windows
@@ -54,30 +55,48 @@ scripts\run_dev.bat
 # Linux/Mac
 ./scripts/run_dev.sh
 ```
-
-**2. 启动Web管理界面 (前端)**
-
-打开一个新的终端，运行：
-
-```bash
-uvicorn src.web_server:app --host 0.0.0.0 --port 8000 --reload
-```
-
-访问 `http://localhost:8000` 查看管理面板。
+服务器将在 `http://localhost:8000` 上启动，并支持SSE（Server-Sent Events）传输。
 
 ### Docker部署
 
 使用项目提供的 `docker-compose.yml` 文件可以快速启动服务。
 
 ```bash
-# 构建镜像
-docker build -t taskhub .
+# 构建并以后台模式运行服务
+docker-compose up --build -d
+```
 
-# 以后台模式运行SSE服务 (推荐)
-docker-compose up taskhub-sse -d
+## 项目结构
 
-# 运行stdio模式 (用于CLI交互)
-docker-compose up taskhub-stdio
+项目遵循标准的 `src` 布局，以清晰地分离源代码和项目配置。
+
+```
+taskhub/
+├── src/
+│   └── taskhub/              # Python包的根目录
+│       ├── __init__.py
+│       ├── server.py         # 主服务器入口 (MCP)
+│       ├── web_server.py     # Web管理界面服务器 (FastAPI)
+│       ├── admin_server.py   # 后台管理任务服务器
+│       ├── models/           # 数据模型 (Pydantic)
+│       ├── storage/          # 数据存储层
+│       ├── tools/            # MCP工具函数
+│       ├── utils/            # 工具类
+│       ├── templates/        # Web页面模板 (Jinja2)
+│       └── static/           # 静态文件
+├── tests/
+│   └── test_taskhub.py       # 单元测试
+├── configs/
+│   ├── config.json           # 主配置文件
+│   └── logging.json          # 日志配置
+├── scripts/
+│   ├── run_dev.bat           # Windows开发启动脚本
+│   ├── run_dev.sh            # Linux/macOS开发启动脚本
+│   └── launch.py             # 内部启动帮助脚本
+├── Dockerfile
+├── docker-compose.yml
+├── pyproject.toml            # 项目配置 (PEP 621)
+└── README.md
 ```
 
 ## API (工具函数)
@@ -150,95 +169,29 @@ docker-compose up taskhub-stdio
         "capability_levels": {"python": 8, "code_review": 9}
       }
       ```
+## Cursor 配置
 
-## 项目配置
+使用项目提供的 `run_stdio.bat` (Windows) 或 `run_stdio.sh` (Linux/macOS) 脚本可以简化与Cursor等MCP客户端的集成。
 
-### 配置文件
+**重要**: 在启动前，请确保您已在项目根目录下激活了虚拟环境 (`.venv`)，否则脚本可能无法正确执行。
 
-核心配置文件位于 `configs/config.json`，日志配置位于 `configs/logging.json`。
-
-**`config.json` 示例:**
-```json
-{
-  "server": {
-    "transport": "stdio",
-    "host": "localhost",
-    "port": 8000
-  },
-  "storage": {
-    "type": "json",
-    "data_dir": "data"
-  },
-  "tasks": {
-    "lease_duration": 300,
-    "max_lease_duration": 3600,
-    "cleanup_interval": 60,
-    "archive_on_complete": true
-  }
-}
+```bash
+# Windows
+.venv\Scripts\activate
+# Linux/macOS
+source .venv/bin/activate
 ```
 
-### 环境变量
-
-环境变量的优先级高于配置文件。
-
-- `TASKHUB_DATA_DIR`: 数据存储目录。
-- `TASKHUB_HOST`: 服务器主机地址。
-- `TASKHUB_PORT`: 服务器端口。
-- `TASKHUB_TRANSPORT`: 传输方式 (`stdio` 或 `sse`)。
-- `TASKHUB_LEASE_DURATION`: 默认任务租约时长（秒）。
-
-## 项目结构
-
-```
-taskhub/
-├── src/
-│   ├── server.py           # 主服务器入口 (MCP)
-│   ├── web_server.py       # Web管理界面服务器 (FastAPI)
-│   ├── admin_server.py     # 后台管理任务服务器
-│   ├── models/             # 数据模型 (Pydantic)
-│   │   ├── task.py
-│   │   └── agent.py
-│   ├── storage/            # 数据存储层
-│   │   ├── json_store.py
-│   │   └── sqlite_store.py
-│   ├── tools/              # MCP工具函数
-│   │   └── taskhub.py
-│   ├── utils/              # 工具类
-│   │   └── config.py
-│   ├── templates/          # Web页面模板 (Jinja2)
-│   │   ├── admin.html
-│   │   └── dashboard.html
-│   └── static/             # 静态文件
-├── tests/
-│   └── test_taskhub.py     # 单元测试
-├── configs/
-│   ├── config.json         # 主配置文件
-│   └── logging.json        # 日志配置
-├── scripts/                # 运行脚本
-├── Dockerfile
-├── docker-compose.yml
-├── pyproject.toml          # 项目配置 (PEP 621)
-└── README.md
-```
-
-## 客户端配置示例
-
-如果您在 [FastMCP-Client](https://github.com/your-repo/FastMCP-Client) 或兼容的客户端中使用此服务器，可以在客户端的 `mcp_servers.json` 中添加以下配置：
+配置示例如下，将 `command` 指向对应的脚本即可。
 
 ```json
 {
   "mcpServers": {
     "taskhub": {
-      "command": "taskhub",
-      "args": [
-        "--transport",
-        "stdio"
-      ],
-      "cwd": "C:\\path\\to\\your\\Taskhub",
+      "command": "scripts/run_stdio.bat", // Windows. Use "scripts/run_stdio.sh" on Linux/macOS.  absolutely path
       "env": {
-        "AGENT_ID": "my-agent",
-        "AGENT_NAME": "MyAgent"
+        "AGENT_ID": "YOUR_AGENT_ID",
+        "AGENT_NAME": "YOUR_AGENT_NAME"
       }
     }
   }
@@ -257,4 +210,4 @@ taskhub/
 
 ## 许可证
 
-本项目采用 MIT 许可证。详情请参阅 `LICENSE` 文件。
+本项目采用 MIT 许可证。

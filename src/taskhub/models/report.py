@@ -1,3 +1,6 @@
+"""
+报告模型定义
+"""
 from typing import Optional, Dict
 from datetime import datetime
 from pydantic import BaseModel, Field

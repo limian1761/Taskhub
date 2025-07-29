@@ -1,9 +1,13 @@
+"""
+代理模型定义
+"""
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 from datetime import datetime
 
 
 class Agent(BaseModel):
+    """代理模型"""
     id: str = Field(..., description="代理唯一标识")
     name: str = Field(..., description="代理名称")
     capabilities: List[str] = Field(..., description="代理能力列表")
@@ -18,6 +22,7 @@ class Agent(BaseModel):
 
 
 class AgentCapability(BaseModel):
+    """代理能力模型"""
     name: str = Field(..., description="能力名称")
     level: int = Field(default=1, description="能力等级")
     metadata: Dict[str, str] = Field(default_factory=dict, description="能力元数据")

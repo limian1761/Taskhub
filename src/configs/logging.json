@@ -22,12 +22,17 @@
   },
   "loggers": {
     "": {
-      "handlers": ["console"],
+      "handlers": [
+        "console"
+      ],
       "level": "INFO",
       "propagate": false
     },
     "taskhub": {
-      "handlers": ["console", "file"],
+      "handlers": [
+        "console",
+        "file"
+      ],
       "level": "DEBUG",
       "propagate": false
     }

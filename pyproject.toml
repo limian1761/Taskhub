@@ -4,6 +4,9 @@ version = "2.0.0"
 description = "Taskhub MCP Server - 基于FastMCP的任务管理和代理协调服务器"
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [
+  { name="limian1761", email="limian1761@gmail.com" }
+]
 dependencies = [
     "mcp[cli]>=1.12.2",
     "pydantic>=2.0.0",
@@ -13,6 +16,10 @@ dependencies = [
     "python-multipart>=0.0.6",
 ]
 
+[project.urls]
+"Homepage" = "https://github.com/your-repo/Taskhub"
+"Bug Tracker" = "https://github.com/your-repo/Taskhub/issues"
+
 [project.optional-dependencies]
 dev = [
     "pytest",
@@ -21,13 +28,11 @@ dev = [
     "uvicorn",
 ]
 
-[project.scripts]
-taskhub = "src.server:main"
+[project.gui-scripts]
+taskhub = "taskhub.server:main"
 
-[tool.hatch.build.targets.sdist]
-include = [
-    "/src",
-]
+[tool.setuptools]
+package-dir = {"" = "src"}
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

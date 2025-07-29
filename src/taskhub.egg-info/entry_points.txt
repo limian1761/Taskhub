@@ -1,2 +1,2 @@
-[console_scripts]
-taskhub = src.server:main
+[gui_scripts]
+taskhub = taskhub.server:main

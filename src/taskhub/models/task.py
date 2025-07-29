@@ -1,3 +1,6 @@
+"""
+任务模型定义
+"""
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -14,6 +17,7 @@ class TaskEvaluation(BaseModel):
 
 
 class Task(BaseModel):
+    """任务模型"""
     id: str = Field(..., description="任务唯一标识")
     name: str = Field(..., description="任务名称")
     details: str = Field(..., description="任务详情")
@@ -29,19 +33,19 @@ class Task(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     evaluation: Optional[TaskEvaluation] = Field(None, description="任务评价信息")
     is_archived: bool = Field(default=False, description="是否已归档")
-    candidates: List[str] = Field(default_factory=list, description="候选代理ID列表")
 
 
 class TaskCreateRequest(BaseModel):
+    """任务创建请求"""
     name: str = Field(..., description="任务名称")
     details: str = Field(..., description="任务详情")
     capability: str = Field(..., description="所需能力")
     depends_on: List[str] = Field(default_factory=list)
     parent_task_id: Optional[str] = None
-    candidates: List[str] = Field(default_factory=list, description="候选代理ID列表")
 
 
 class TaskUpdateRequest(BaseModel):
+    """任务更新请求"""
     name: Optional[str] = None
     details: Optional[str] = None
     status: Optional[str] = None

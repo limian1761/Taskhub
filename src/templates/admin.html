@@ -70,6 +70,8 @@
         .btn-warning:hover { background-color: #e0a800; }
         .btn-info { background-color: #17a2b8; }
         .btn-info:hover { background-color: #138496; }
+        .btn-success { background-color: #28a745; }
+        .btn-success:hover { background-color: #218838; }
 
         #log-container {
             background-color: #2c3e50;
@@ -107,6 +109,9 @@
         .word-break {
             word-break: break-all;
         }
+        
+        /* AI Tool Styles */
+
     </style>
 </head>
 <body>
@@ -127,6 +132,8 @@
                 <button id="restart-btn" class="btn-warning">Restart</button>
             </div>
         </div>
+
+        <!-- AI Management Tool -->
 
         <!-- Data Management Sections -->
         <div class="section">
@@ -159,8 +166,9 @@
                     <tr>
                         <th>ID</th>
                         <th>Name</th>
-                        <th>Status</th>
+                        <th>Description</th>
                         <th>Capability</th>
+                        <th>Status</th>
                         <th>Assignee</th>
                         <th>Actions</th>
                     </tr>
@@ -181,6 +189,7 @@
                         <th>Task ID</th>
                         <th>Agent ID</th>
                         <th>Status</th>
+                        <th>Details</th>
                         <th>Result</th>
                         <th>Actions</th>
                     </tr>
@@ -197,199 +206,229 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- Element Selectors ---
+        // Utility function for API requests
+        async function apiRequest(url, method = 'GET', body = null) {
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        }
+
+        // Utility function to update service status display
+        function updateStatusDisplay(status) {
             const statusIndicator = document.getElementById('status-indicator');
             const statusText = document.getElementById('status-text');
-            const startBtn = document.getElementById('start-btn');
-            const stopBtn = document.getElementById('stop-btn');
-            const restartBtn = document.getElementById('restart-btn');
-            const logContainer = document.getElementById('log-container');
+            statusIndicator.className = 'status-indicator ' + (status === 'running' ? 'running' : 'stopped');
+            statusText.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
 
-            // --- Data Management Elements ---
-            const refreshAgentsBtn = document.getElementById('refresh-agents-btn');
-            const agentsTableBody = document.querySelector('#agents-table tbody');
-            const refreshTasksBtn = document.getElementById('refresh-tasks-btn');
-            const tasksTableBody = document.querySelector('#tasks-table tbody');
-            const refreshReportsBtn = document.getElementById('refresh-reports-btn');
-            const reportsTableBody = document.querySelector('#reports-table tbody');
-
-            // --- WebSocket ---
-            let socket;
-            function connectWebSocket() {
-                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${wsProtocol}//${window.location.host}/ws/logs`;
-                socket = new WebSocket(wsUrl);
-
-                socket.onopen = () => logContainer.innerHTML += '<div>[Admin] WebSocket connection established.</div>';
-                socket.onmessage = (event) => {
-                    if (event.data === "") return; // Ignore pings
-                    logContainer.innerHTML += event.data.replace(/\n/g, '<br>');
-                    logContainer.scrollTop = logContainer.scrollHeight;
-                };
-                socket.onclose = () => {
-                    logContainer.innerHTML += '<div>[Admin] WebSocket connection closed. Reconnecting in 3s...</div>';
-                    setTimeout(connectWebSocket, 3000);
-                };
-                socket.onerror = () => logContainer.innerHTML += '<div>[Admin] WebSocket error.</div>';
+        // Function to update service status
+        async function updateStatus() {
+            try {
+                const data = await apiRequest('/api/status');
+                updateStatusDisplay(data.status);
+            } catch (error) {
+                console.error('Error fetching status:', error);
+                updateStatusDisplay('error');
             }
+        }
 
-            // --- API Helpers ---
-            async function apiRequest(endpoint, method = 'POST', body = null) {
-                try {
-                    const options = { method };
-                    if (body) {
-                        options.headers = { 'Content-Type': 'application/json' };
-                        options.body = JSON.stringify(body);
-                    }
-                    const response = await fetch(`/api/${endpoint}`, options);
-                    if (!response.ok) {
-                        const error = await response.json();
-                        alert(`Error: ${error.detail || 'Unknown error'}`);
-                        return null;
-                    }
-                    return response.status === 204 ? true : await response.json();
-                } catch (error) {
-                    console.error(`API request failed for ${method} /api/${endpoint}:`, error);
-                    alert('Failed to contact server. Is the admin panel running?');
-                    return null;
-                }
-            }
-
-            // --- Service Control Logic ---
-            async function updateStatus() {
-                const data = await apiRequest('status', 'GET');
-                if (data) {
-                    const isRunning = data.status === 'running';
-                    statusText.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
-                    statusIndicator.className = `status-indicator ${data.status}`;
-                    startBtn.disabled = isRunning;
-                    stopBtn.disabled = !isRunning;
-                    restartBtn.disabled = !isRunning;
-                } else {
-                    statusText.textContent = 'Offline';
-                    statusIndicator.className = 'status-indicator stopped';
-                    [startBtn, stopBtn, restartBtn].forEach(btn => btn.disabled = true);
-                    startBtn.disabled = false;
-                }
-            }
-            startBtn.addEventListener('click', () => apiRequest('start').then(updateStatus));
-            stopBtn.addEventListener('click', () => apiRequest('stop').then(updateStatus));
-            restartBtn.addEventListener('click', () => apiRequest('restart').then(updateStatus));
-
-            // --- Data Management Logic ---
-            const renderTable = (tbody, data, columns, actions) => {
-                tbody.innerHTML = '';
-                if (!data || data.length === 0) {
-                    const row = tbody.insertRow();
-                    const cell = row.insertCell();
-                    cell.colSpan = columns.length + 1;
-                    cell.textContent = 'No data available.';
-                    cell.style.textAlign = 'center';
-                    return;
-                }
-                data.forEach(item => {
-                    const row = tbody.insertRow();
-                    columns.forEach(col => {
-                        const cell = row.insertCell();
-                        cell.textContent = typeof col.render === 'function' ? col.render(item) : item[col.key];
-                        if (col.class) cell.classList.add(col.class);
-                    });
-                    const actionCell = row.insertCell();
-                    actions.forEach(action => {
-                        const button = document.createElement('button');
-                        button.textContent = action.label;
-                        button.className = action.class;
-                        button.disabled = action.disabled === true;
-                        button.onclick = () => action.handler(item.id);
-                        actionCell.appendChild(button);
-                    });
-                });
-            };
-
-            // Agents
-            async function fetchAndRenderAgents() {
-                const agents = await apiRequest('agents', 'GET');
-                renderTable(agentsTableBody, agents,
-                    [
-                        { key: 'id', class: 'word-break' },
-                        { key: 'name' },
-                        { key: 'reputation' },
-                        { key: 'capabilities', render: item => item.capabilities.join(', ') },
-                        { key: 'status' }
-                    ],
-                    [
-                        { label: 'Delete', class: 'btn-danger', handler: deleteAgent, disabled: false }
-                    ]
-                );
-            }
-            async function deleteAgent(id) {
-                if (confirm(`Are you sure you want to delete agent ${id}?`)) {
-                    await apiRequest(`agents/${id}`, 'DELETE');
-                    fetchAndRenderAgents();
-                }
-            }
-            refreshAgentsBtn.addEventListener('click', fetchAndRenderAgents);
-
-            // Tasks
-            async function fetchAndRenderTasks() {
-                const tasks = await apiRequest('tasks', 'GET');
-                renderTable(tasksTableBody, tasks,
-                    [
-                        { key: 'id', class: 'word-break' },
-                        { key: 'name' },
-                        { key: 'status' },
-                        { key: 'capability' },
-                        { key: 'assignee', class: 'word-break' }
-                    ],
-                    [
-                        { label: 'Delete', class: 'btn-danger', handler: deleteTask }
-                    ]
-                );
-            }
-            async function deleteTask(id) {
-                if (confirm(`Are you sure you want to delete task ${id}?`)) {
-                    await apiRequest(`tasks/${id}`, 'DELETE');
-                    fetchAndRenderTasks();
-                }
-            }
-            refreshTasksBtn.addEventListener('click', fetchAndRenderTasks);
-
-            // Reports
-            async function fetchAndRenderReports() {
-                const reports = await apiRequest('reports', 'GET');
-                renderTable(reportsTableBody, reports,
-                    [
-                        { key: 'id', class: 'word-break' },
-                        { key: 'task_id', class: 'word-break' },
-                        { key: 'agent_id', class: 'word-break' },
-                        { key: 'status' },
-                        { key: 'result' }
-                    ],
-                    [
-                        { label: 'Delete', class: 'btn-danger', handler: deleteReport }
-                    ]
-                );
-            }
-            async function deleteReport(id) {
-                if (confirm(`Are you sure you want to delete report ${id}?`)) {
-                    await apiRequest(`reports/${id}`, 'DELETE');
-                    fetchAndRenderReports();
-                }
-            }
-            refreshReportsBtn.addEventListener('click', fetchAndRenderReports);
-
-            // --- Initial Load ---
-            function initialLoad() {
+        // Service control functions
+        async function startService() {
+            try {
+                await apiRequest('/api/start', 'POST');
                 updateStatus();
-                connectWebSocket();
-                fetchAndRenderAgents();
-                fetchAndRenderTasks();
-                fetchAndRenderReports();
-                setInterval(updateStatus, 10000); // Poll for service status less frequently
+            } catch (error) {
+                alert('Error starting service: ' + error.message);
             }
+        }
 
-            initialLoad();
+        async function stopService() {
+            try {
+                await apiRequest('/api/stop', 'POST');
+                updateStatus();
+            } catch (error) {
+                alert('Error stopping service: ' + error.message);
+            }
+        }
+
+        async function restartService() {
+            try {
+                await apiRequest('/api/restart', 'POST');
+                updateStatus();
+            } catch (error) {
+                alert('Error restarting service: ' + error.message);
+            }
+        }
+
+        // Data fetching functions
+        async function fetchAgents() {
+            try {
+                const agents = await apiRequest('/api/agents');
+                const tableBody = document.querySelector('#agents-table tbody');
+                tableBody.innerHTML = '';
+                agents.forEach(agent => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${agent.id}</td>
+                        <td>${agent.name}</td>
+                        <td>${agent.reputation}</td>
+                        <td>${agent.capabilities.join(', ')}</td>
+                        <td>${agent.status}</td>
+                        <td><button class="btn-danger" onclick="deleteAgent('${agent.id}')">Delete</button></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error fetching agents:', error);
+                alert('Error fetching agents: ' + error.message);
+            }
+        }
+
+        async function fetchTasks() {
+            try {
+                const tasks = await apiRequest('/api/tasks');
+                const tableBody = document.querySelector('#tasks-table tbody');
+                tableBody.innerHTML = '';
+                tasks.forEach(task => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${task.id}</td>
+                        <td>${task.name}</td>
+                        <td class="word-break">${task.details}</td>
+                        <td>${task.capability}</td>
+                        <td>${task.status}</td>
+                        <td>${task.assignee || 'Unassigned'}</td>
+                        <td>
+                            <button class="btn-danger" onclick="deleteTask('${task.id}')">Delete</button>
+                            <button class="btn-success" onclick="claimTask('${task.id}', prompt('Enter Agent ID:'))">Claim</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error fetching tasks:', error);
+                alert('Error fetching tasks: ' + error.message);
+            }
+        }
+
+        async function fetchReports() {
+            try {
+                const reports = await apiRequest('/api/reports');
+                const tableBody = document.querySelector('#reports-table tbody');
+                tableBody.innerHTML = '';
+                reports.forEach(report => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${report.id}</td>
+                        <td>${report.task_id}</td>
+                        <td>${report.agent_id}</td>
+                        <td>${report.status}</td>
+                        <td class="word-break">${report.details || ''}</td>
+                        <td class="word-break">${report.result || ''}</td>
+                        <td><button class="btn-danger" onclick="deleteReport('${report.id}')">Delete</button></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error fetching reports:', error);
+                alert('Error fetching reports: ' + error.message);
+            }
+        }
+
+        // Data deletion functions
+        async function deleteAgent(agentId) {
+            if (!confirm(`Are you sure you want to delete agent ${agentId}?`)) return;
+            try {
+                await apiRequest(`/api/agents/${agentId}`, 'DELETE');
+                fetchAgents();
+            } catch (error) {
+                alert('Error deleting agent: ' + error.message);
+            }
+        }
+
+        async function deleteTask(taskId) {
+            if (!confirm(`Are you sure you want to delete task ${taskId}?`)) return;
+            try {
+                await apiRequest(`/api/tasks/${taskId}`, 'DELETE');
+                fetchTasks();
+            } catch (error) {
+                alert('Error deleting task: ' + error.message);
+            }
+        }
+
+        async function deleteReport(reportId) {
+            if (!confirm(`Are you sure you want to delete report ${reportId}?`)) return;
+            try {
+                await apiRequest(`/api/reports/${reportId}`, 'DELETE');
+                fetchReports();
+            } catch (error) {
+                alert('Error deleting report: ' + error.message);
+            }
+        }
+
+        // Task claiming function
+        async function claimTask(taskId, agentId) {
+            if (!taskId || !agentId) {
+                alert('Task ID and Agent ID are required.');
+                return;
+            }
+            try {
+                const result = await apiRequest(`/api/tasks/${taskId}/claim`, 'POST', { agent_id: agentId });
+                alert('Task claimed successfully: ' + JSON.stringify(result));
+                fetchTasks();
+            } catch (error) {
+                alert('Error claiming task: ' + error.message);
+            }
+        }
+
+        // AI Tool Functions
+
+        // WebSocket for logs
+        const ws = new WebSocket(`ws://${window.location.host}/ws/logs`);
+        
+        ws.onmessage = function(event) {
+            const logContainer = document.getElementById('log-container');
+            const message = document.createElement('div');
+            message.textContent = event.data;
+            logContainer.appendChild(message);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        };
+        
+        ws.onclose = function() {
+            console.log('WebSocket connection closed');
+        };
+        
+        ws.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up event listeners
+            document.getElementById('start-btn').addEventListener('click', startService);
+            document.getElementById('stop-btn').addEventListener('click', stopService);
+            document.getElementById('restart-btn').addEventListener('click', restartService);
+            document.getElementById('refresh-agents-btn').addEventListener('click', fetchAgents);
+            document.getElementById('refresh-tasks-btn').addEventListener('click', fetchTasks);
+            document.getElementById('refresh-reports-btn').addEventListener('click', fetchReports);
+            
+            // Initial data fetch
+            updateStatus();
+            fetchAgents();
+            fetchTasks();
+            fetchReports();
         });
     </script>
 </body>

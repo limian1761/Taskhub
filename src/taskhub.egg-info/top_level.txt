@@ -1,10 +1,7 @@
-__init__
 admin_server
-models
-server
+configs
+data
 static
-storage
+taskhub
 templates
-tools
-utils
 web_server

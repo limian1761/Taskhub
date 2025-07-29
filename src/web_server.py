@@ -10,9 +10,9 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from src.storage.json_store import JsonStore
-from src.models.task import Task
-from src.models.agent import Agent
+from .storage.json_store import JsonStore
+from .models.task import Task
+from .models.agent import Agent
 
 
 class WebAdminServer:
