@@ -1,6 +1,5 @@
 admin_server
 configs
-data
 static
 taskhub
 templates

@@ -1,0 +1,17 @@
+{
+  "server": {
+    "host": "localhost",
+    "port": 8000,
+    "transport": "stdio"
+  },
+  "storage": {
+    "type": "sqlite",
+    "data_dir": "C:\\Users\\lichao\\source\\repos\\limian1761\\Taskhub\\scripts\\..\\data",
+    "namespace": "default"
+  },
+  "task": {
+    "default_lease_duration": 30,
+    "max_lease_duration": 120,
+    "cleanup_interval": 300
+  }
+}

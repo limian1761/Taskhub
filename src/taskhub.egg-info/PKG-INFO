@@ -7,7 +7,7 @@ Project-URL: Homepage, https://github.com/your-repo/Taskhub
 Project-URL: Bug Tracker, https://github.com/your-repo/Taskhub/issues
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
-Requires-Dist: mcp[cli]>=1.12.2
+Requires-Dist: mcp[cli,fastapi]>=1.12.2
 Requires-Dist: pydantic>=2.0.0
 Requires-Dist: fastapi>=0.104.0
 Requires-Dist: uvicorn[standard]>=0.24.0
@@ -209,7 +209,7 @@ source .venv/bin/activate
 {
   "mcpServers": {
     "taskhub": {
-      "command": "scripts/run_stdio.bat", // Windows. Use "scripts/run_stdio.sh" on Linux/macOS.
+      "command": "scripts/run_stdio.bat", // Windows. Use "scripts/run_stdio.sh" on Linux/macOS.  absolutely path
       "env": {
         "AGENT_ID": "YOUR_AGENT_ID",
         "AGENT_NAME": "YOUR_AGENT_NAME"

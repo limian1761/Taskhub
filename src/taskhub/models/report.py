@@ -30,17 +30,6 @@ class Report(BaseModel):
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
-
-class ReportSubmitParams(BaseModel):
-    """提交任务报告的参数模型"""
-    
-    task_id: str = Field(..., description="任务ID")
-    agent_id: str = Field(..., description="代理ID")
-    status: str = Field(..., description="任务状态")
-    details: Optional[str] = Field(None, description="报告详情")
-    result: Optional[str] = Field(None, description="执行结果")
-
-
 class ReportListParams(BaseModel):
     """获取报告列表的参数模型"""
     

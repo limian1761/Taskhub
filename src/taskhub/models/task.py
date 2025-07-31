@@ -50,3 +50,10 @@ class TaskUpdateRequest(BaseModel):
     details: Optional[str] = None
     status: Optional[str] = None
     assignee: Optional[str] = None
+
+class TaskListParams(BaseModel):
+    """任务列表查询参数"""
+    status: Optional[str] = None
+    capability: Optional[str] = None
+    assignee: Optional[str] = None
+
