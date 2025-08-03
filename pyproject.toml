@@ -23,20 +23,38 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "black",
+    "pytest-asyncio",
+    "pyright",
     "ruff",
     "uvicorn",
 ]
 
-[project.gui-scripts]
+[project.scripts]
 taskhub = "taskhub.server:main"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/taskhub"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[tool.pyright]
+include = ["src/taskhub", "tests"]
+venvPath = "."
+venv = ".venv"
+strict = ["src/taskhub/**/*.py"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["C4", "E", "F", "I", "PERF", "UP"]
+ignore = ["PERF203"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]

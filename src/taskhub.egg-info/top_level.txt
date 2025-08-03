@@ -1,6 +1,0 @@
-admin_server
-configs
-static
-taskhub
-templates
-web_server

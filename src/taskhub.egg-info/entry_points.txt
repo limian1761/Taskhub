@@ -1,2 +1,0 @@
-[gui_scripts]
-taskhub = taskhub.server:main

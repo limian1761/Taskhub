@@ -2,7 +2,7 @@
   "server": {
     "host": "localhost",
     "port": 8000,
-    "transport": "stdio"
+    "transport": "sse"
   },
   "storage": {
     "type": "json",

@@ -1,59 +1,83 @@
 """
 任务模型定义
 """
+
+from datetime import datetime, timezone
+from enum import Enum
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
-from datetime import datetime
+
+
+class TaskStatus(str, Enum):
+    """任务状态枚举"""
+
+    PENDING = "pending"
+    CLAIMED = "claimed"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    ARCHIVED = "archived"
 
 
 class TaskEvaluation(BaseModel):
     """任务评价信息"""
+
     score: int = Field(..., description="任务评分 1-100")
-    reputation_change: int = Field(..., description="声望值变化")
     feedback: str = Field(..., description="评价反馈")
     evaluator_id: str = Field(..., description="评价者ID")
-    evaluated_at: datetime = Field(default_factory=datetime.utcnow)
-    capability_updates: Dict[str, int] = Field(default_factory=dict, description="能力等级更新")
+    evaluated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    skill_updates: dict[str, int] = Field(default_factory=dict, description="技能分数更新")
 
 
 class Task(BaseModel):
     """任务模型"""
+
     id: str = Field(..., description="任务唯一标识")
     name: str = Field(..., description="任务名称")
     details: str = Field(..., description="任务详情")
-    capability: str = Field(..., description="所需能力")
+    required_skill: str = Field(..., description="完成任务所需的核心技能")
     status: str = Field(default="pending", description="任务状态")
-    assignee: Optional[str] = None
-    lease_id: Optional[str] = None
-    lease_expires_at: Optional[datetime] = None
-    depends_on: List[str] = Field(default_factory=list)
-    parent_task_id: Optional[str] = None
-    created_by: Optional[str] = Field(None, description="任务创建者ID")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-    evaluation: Optional[TaskEvaluation] = Field(None, description="任务评价信息")
+    hunter_id: str | None = None
+    lease_id: str | None = None
+    lease_expires_at: datetime | None = None
+    depends_on: list[str] = Field(default_factory=list)
+    parent_task_id: str | None = None
+    created_by: str | None = Field(None, description="任务创建者ID")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    evaluation: TaskEvaluation | None = Field(None, description="任务评价信息")
     is_archived: bool = Field(default=False, description="是否已归档")
 
 
 class TaskCreateRequest(BaseModel):
     """任务创建请求"""
+
     name: str = Field(..., description="任务名称")
     details: str = Field(..., description="任务详情")
-    capability: str = Field(..., description="所需能力")
-    depends_on: List[str] = Field(default_factory=list)
-    parent_task_id: Optional[str] = None
+    required_skill: str = Field(..., description="所需技能")
+    depends_on: list[str] = Field(default_factory=list)
+    parent_task_id: str | None = None
 
 
 class TaskUpdateRequest(BaseModel):
     """任务更新请求"""
-    name: Optional[str] = None
-    details: Optional[str] = None
-    status: Optional[str] = None
-    assignee: Optional[str] = None
+
+    name: str | None = None
+    details: str | None = None
+    status: str | None = None
+    assignee: str | None = None
+
 
 class TaskListParams(BaseModel):
     """任务列表查询参数"""
-    status: Optional[str] = None
-    capability: Optional[str] = None
-    assignee: Optional[str] = None
 
+    status: str | None = None
+    required_skill: str | None = None
+    hunter_id: str | None = None
+
+
+class TaskDeleteParams(BaseModel):
+    """任务删除参数"""
+
+    task_id: str = Field(..., description="任务ID")
+    force: bool = Field(default=False, description="是否强制删除")

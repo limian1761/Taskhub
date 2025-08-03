@@ -5,13 +5,13 @@ Taskhub是一个基于FastMCP的任务管理和代理协调服务器，专为支
 ## 核心功能
 
 - 🎯 **任务管理**: 提供任务的创建、分配、更新和监控功能。
-- 🤖 **代理协调**: 根据代理的能力和声望，智能地分配任务。
-- 🧠 **智能推荐**: 为代理推荐最匹配的任务，提升协作效率。
-- ⭐ **声誉系统**: 通过任务评价和反馈，动态管理代理的声望。
+- 🤖 **代理协调**: 根据代理的技能 (`skills`) 智能地分配任务。
+- 🧠 **知识库 (Knowledge Base)**: 支持创建和管理知识点，允许代理通过学习 (`agent_study`) 来提升其技能分数。
+- ⭐ **技能系统 (Skill System)**: 通过任务评价和主动学习，动态管理代理在各项技能上的熟练度分数。
 - 📦 **数据归档**: 自动归档已完成的任务，简化数据生命周期管理。
 - 🔗 **依赖管理**: 支持定义和处理任务之间的依赖关系。
 - 📊 **状态跟踪**: 提供任务和代理的实时状态监控。
-- 🔄 **租约机制**: 确保任务在认领后被锁定，防止重复处理。
+- 📝 **日志系统**: 完整的操作日志记录，便于问题排查和系统监控。
 - 🌐 **Web管理界面**: 内置现代化的Web面板，用于可视化管理。
 - 🐳 **容器化支持**: 提供Docker和Docker Compose配置，简化部署流程。
 
@@ -30,184 +30,160 @@ Taskhub是一个基于FastMCP的任务管理和代理协调服务器，专为支
     ```
 
 2.  **安装依赖**
-    使用 `uv` 创建虚拟环境并安装依赖。项目配置为可编辑模式 (`-e`)，这意味着您对源代码的更改会立即生效。
     ```bash
-    # 创建并激活虚拟环境
     uv venv
     source .venv/bin/activate  # Linux/macOS
     .venv\Scripts\activate    # Windows
-
-    # 安装项目及核心依赖
     uv pip install -e .
-
-    # (可选) 安装开发依赖
-    uv pip install -e ".[dev]"
     ```
 
 ### 启动服务
 
-直接运行开发脚本即可启动服务器。该脚本会处理所有必要的环境配置。
+使用项目根目录下的 `start_all.bat` (Windows) 或 `start_all.sh` (Linux/macOS) 脚本一键启动所有服务。
 
 ```bash
 # Windows
-scripts\run_dev.bat
+.\start_all.bat
 
-# Linux/Mac
-./scripts/run_dev.sh
+# Linux/macOS
+chmod +x start_all.sh
+./start_all.sh
 ```
-服务器将在 `http://localhost:8000` 上启动，并支持SSE（Server-Sent Events）传输。
 
-### Docker部署
+脚本将启动两个核心服务：
+- **主服务 (Taskhub MCP Server)**: 运行在 `http://localhost:3000`。
+- **API & Web 服务器**: 运行在 `http://localhost:8000`。
 
-使用项目提供的 `docker-compose.yml` 文件可以快速启动服务。
+### Web管理界面
+
+启动服务后，在浏览器中访问 `http://localhost:8000` 即可打开Web管理界面。
+
+### 多租户 (Namespace)
+
+API服务器支持通过 `?namespace=` 查询参数来隔离不同项目的数据。
+
+**示例**:
+- `http://localhost:8000/api/tasks?namespace=project_x`
+
+### API (工具函数)
+
+以下是可通过MCP客户端调用的核心工具函数。
+
+- `task_publish(name: str, details: str, required_skill: str, ...)`: 发布一个新任务。
+- `task_claim(task_id: str)`: 认领一个任务。
+- `report_submit(task_id: str, status: str, result: str, ...)`: 提交任务报告。
+- `report_evaluate(report_id: str, score: int, feedback: str, skill_updates: dict)`: 评价报告并更新提交者的技能分数。
+- `agent_register(skills: dict)`: 注册自己并声明初始技能。
+- `agent_study(knowledge_id: str)`: 学习一个知识点以提升相关技能分数。
+- `knowledge_add(title: str, content: str, skill_tags: list[str], ...)`: 添加一个新的知识点。
+- `knowledge_list(skill_tag: str | None)`: 列出知识点。
+- `knowledge_search(query: str)`: 搜索知识库。
+- `get_system_guide()`: 获取系统操作指南。
+
+## Docker部署
+
+使用 `docker-compose.yml` 文件可以快速启动服务。
 
 ```bash
-# 构建并以后台模式运行服务
 docker-compose up --build -d
 ```
 
 ## 项目结构
 
-项目遵循标准的 `src` 布局，以清晰地分离源代码和项目配置。
-
 ```
 taskhub/
 ├── src/
-│   └── taskhub/              # Python包的根目录
-│       ├── __init__.py
-│       ├── server.py         # 主服务器入口 (MCP)
-│       ├── web_server.py     # Web管理界面服务器 (FastAPI)
-│       ├── admin_server.py   # 后台管理任务服务器
-│       ├── models/           # 数据模型 (Pydantic)
-│       ├── storage/          # 数据存储层
-│       ├── tools/            # MCP工具函数
-│       ├── utils/            # 工具类
-│       ├── templates/        # Web页面模板 (Jinja2)
-│       └── static/           # 静态文件
-├── tests/
-│   └── test_taskhub.py       # 单元测试
-├── configs/
-│   ├── config.json           # 主配置文件
-│   └── logging.json          # 日志配置
-├── scripts/
-│   ├── run_dev.bat           # Windows开发启动脚本
-│   ├── run_dev.sh            # Linux/macOS开发启动脚本
-│   └── launch.py             # 内部启动帮助脚本
-├── Dockerfile
-├── docker-compose.yml
-├── pyproject.toml            # 项目配置 (PEP 621)
-└── README.md
+│   ├── api_server.py         # 统一的API和Web服务器
+│   ├── taskhub/              # Python包
+│   │   ├── server.py         # 主服务器 (MCP)
+│   │   ├── models/           # 数据模型
+│   │   ├── storage/          # 数据存储
+│   │   └── tools/            # 核心逻辑
+│   ├── templates/
+│   └── static/
+├── start_all.bat
+├── start_all.sh
+...
 ```
 
-## API (工具函数)
+### 计划
+✦ 这是一个很好的问题。构建一个高效的知识库是提升任何项目（尤其是像Taskhub这样基于Agent的系统）智能和效率的核心
+  。一个“高效”的知识库不仅仅是存储信息，更在于知识的高质量、易于获取、和能够被智能体（Agent）主动、准确地应用
+  。
 
-以下是可通过MCP客户端调用的核心工具函数。
+  结合您当前的Taskhub项目，我们可以从以下几个层面来构建一个更高效的知识库：
 
-#### 1. `task_list`
-列出符合条件的任务。
+  1. 知识的结构化与质量 (Structured & High-Quality Knowledge)
 
-- **参数**: `status`, `capability`, `assignee` (均为可选)
-- **示例**: `{"status": "pending", "capability": "python"}`
+  高质量的内容是基础。可以从以下几点入手：
+   * 模板化： 为不同类型的知识（如：操作指南、错误排查、最佳实践、代码片段）创建标准模板。这能确保知识的完整性
+     和一致性。
+   * 富文本与元数据：
+     使用Markdown等格式来清晰地组织内容。更重要的是，为每个知识条目添加丰富的元数据（Metadata），例如：
+       * domain_tags: (您已有的) 领域标签，非常重要。
+       * task_relevance: 关联的任务类型。
+       * author/owner: 知识负责人。
+       * created_at/updated_at: 创建/更新日期。
+       * confidence_score: 知识的置信度。
+       * usage_count: 使用频率。
+   * 版本控制： 知识也需要像代码一样进行版本管理，方便追踪变更和回滚。
 
-#### 2. `task_publish`
-发布一个新任务。
+  2. 知识的获取与输入 (Acquisition & Input)
 
-- **参数**: `name`, `details`, `capability`, `created_by` (必填), `depends_on`, `candidates` (可选)
-- **示例**: `{"name": "数据分析", "details": "分析用户行为数据", "capability": "python"}`
+  让知识录入变得简单、甚至自动化：
+   * 自动化沉淀： Taskhub的核心是任务执行。可以设计一个机制，在任务成功完成后，让Agent自动总结本次任务的关键步
+     骤、解决方案，并格式化为知识库条目，交由人类审核后入库。
+   * 多渠道输入： 除了手动调用knowledge.add，可以开发插件或接口，从其他系统（如Git提交信息、Slack对话、技术文
+     档）中提取和导入知识。
 
-#### 3. `task_claim`
-代理认领一个任务。
+  3. 核心：知识的检索与应用 (Retrieval & Application)
 
-- **参数**: `task_id`, `agent_id`
-- **示例**: `{"task_id": "task-001", "agent_id": "agent-001"}`
+  这是最能体现“高效”的地方。传统的关键词搜索已经不够用了。
 
-#### 4. `report_submit`
-提交任务的执行报告。
+  我强烈建议引入语义搜索（Semantic Search）和检索增强生成（Retrieval-Augmented Generation, RAG）流程。
 
-- **参数**: `task_id`, `status` (completed/failed), `result`, `details` (可选)
-- **示例**: `{"task_id": "task-001", "status": "completed", "result": "分析完成"}`
+  这是当前大语言模型应用中最核心的技术之一，能让知识库的效能产生质的飞跃。
 
-#### 5. `task_delete`
-删除一个任务。
+  基本思路如下：
 
-- **参数**: `task_id`, `force` (可选, 默认为 `false`)
-- **注意**: 如果任务被认领或被其他任务依赖，`force=false` 时删除会失败。
+   1. 知识向量化 (Embedding)：
+       * 当一个知识条目被创建或更新时，使用一个深度学习模型（Embedding
+         Model）将其内容（标题、正文等）转换成一个数学向量（Vector）。
+       * 这个向量可以被认为是该知识在多维空间中的“语义坐标”。
+       * 所有知识条目的向量存储在一个专门的向量数据库中（如FAISS, ChromaDB, Pinecone等）。
 
-#### 6. `report_evaluate`
-评价一个任务报告，并更新代理声望。
+   2. 语义检索 (Semantic Retrieval)：
+       * 当一个Agent接到一个新任务时，它不再是去知识库里做关键词搜索。
+       * 而是先将任务描述也用同一个Embedding Model转换成一个查询向量（Query Vector）。
+       * 然后，在向量数据库中，计算这个查询向量与所有知识向量的“距离”（通常是余弦相似度）。
+       * 距离最近的N个知识条目，就是与当前任务语义上最相关的知识。
 
-- **参数**: `report_id`, `score` (0-100), `reputation_change`, `feedback`, `capability_updates` (可选)
-- **示例**: `{"report_id": "report-001", "score": 95, "reputation_change": 10}`
+   3. 检索增强生成 (RAG)：
+       * Agent拿到这N个最相关的知识条目后，将它们作为上下文（Context），连同原始的任务指令，一起发送给大语言模
+         型（LLM）。
+       * 这样，LLM就能基于这些“背景知识”来完成任务，而不是凭空猜测。这极大地提高了任务完成的准确性和可靠性。
 
-#### 7. `task_archive`
-归档一个已完成的任务。
+  4. 知识的维护与演进 (Maintenance & Evolution)
 
-- **参数**: `task_id`
+  知识库需要持续迭代：
+   * 反馈闭环： Agent在使用完一个知识后，可以对其进行“评价”。比如，如果应用该知识后任务成功，则增加该知识的con
+     fidence_score和usage_count；如果失败，则降低分数，并触发审查流程。
+   * 定期审查： 对于长期未使用或评分较低的知识，应有机制定期提醒owner进行审查、更新或归档。
+   * 发现“知识缺口”： 分析那些Agent无法从知识库中找到相关信息的任务。这些失败的查询记录本身就是宝贵的数据，它
+     们指明了知识库需要补充哪些内容。
 
-#### 8. `task_suggest_agents`
-为任务推荐最合适的代理。
+  ---
 
-- **参数**: `task_id`, `limit` (可选, 默认10)
+  针对Taskhub项目的具体建议
 
-#### 9. `agent_register`
-注册代理并声明其能力。
+  我可以协助您将上述理念落地到您的项目中。我们可以从实现一个基础的RAG流程开始：
 
-- **重要**: `agent_id` 和 `name` **必须**通过环境变量设置，不能作为参数传入。
-- **环境变量**: 
-  - `AGENT_ID`: 代理的唯一标识符。
-  - `AGENT_NAME`: 代理的显示名称。
-- **示例**: 
-  1.  **设置环境变量**:
-      ```bash
-      export AGENT_ID=code-expert-001
-      export AGENT_NAME="代码专家"
-      ```
-  2.  **调用工具 (JSON参数)**:
-      ```json
-      {
-        "capabilities": ["python", "code_review"],
-        "capability_levels": {"python": 8, "code_review": 9}
-      }
-      ```
-## Cursor 配置
-
-使用项目提供的 `run_stdio.bat` (Windows) 或 `run_stdio.sh` (Linux/macOS) 脚本可以简化与Cursor等MCP客户端的集成。
-
-**重要**: 在启动前，请确保您已在项目根目录下激活了虚拟环境 (`.venv`)，否则脚本可能无法正确执行。
-
-```bash
-# Windows
-.venv\Scripts\activate
-# Linux/macOS
-source .venv/bin/activate
-```
-
-配置示例如下，将 `command` 指向对应的脚本即可。
-
-```json
-{
-  "mcpServers": {
-    "taskhub": {
-      "command": "scripts/run_stdio.bat", // Windows. Use "scripts/run_stdio.sh" on Linux/macOS.  absolutely path
-      "env": {
-        "AGENT_ID": "YOUR_AGENT_ID",
-        "AGENT_NAME": "YOUR_AGENT_NAME"
-      }
-    }
-  }
-}
-```
-
-## 贡献
-
-欢迎通过提交 Issue 和 Pull Request 来为项目做出贡献。
-
-### 开发规范
-1.  **代码格式**: 使用 Black 和 Ruff 进行格式化和检查。
-2.  **测试**: 所有新功能或修复都应附带相应的单元测试。
-3.  **文档**: 及时更新 `README.md` 和相关代码注释。
-4.  **提交信息**: 遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范。
-
-## 许可证
-
-本项目采用 MIT 许可证。
+   1. 分析现有代码： 我需要先阅读一下taskhub/models, taskhub/storage,
+      taskhub/tools下的相关代码，了解当前知识库的数据模型和存储方式。
+   2. 改造知识模型： 在taskhub.models中，为知识模型增加embedding字段。
+   3. 实现向量化和存储： 改造taskhub.knowledge.add工具，在添加知识时，调用一个开源的Embedding模型（例如sentence
+      -transformers库中的模型）生成向量，并将其存入数据库。
+   4. 创建语义搜索工具： 创建一个新的工具，如taskhub.knowledge.semantic_search(query:
+      str)，它能接收一个查询，将其向量化，并返回最相关的知识。
+   5. 整合到Agent工作流：
+      修改Agent执行任务的逻辑，在处理任务前，先调用semantic_search获取背景知识，然后再进行后续操作。

@@ -297,7 +297,7 @@ Taskhub 通过一个统一的 `JSON-RPC 2.0` 端点提供服务。所有请求�
       "capability": "data-analysis",
       "created_by": "creator-id",  // 必填：创建者的ID
       "depends_on": [],            // 可选：依赖的任务ID列表
-      "candidates": []             // 可选：候选代理ID列表
+      
       "parent_task_id": "task-abc", // 可选
       "depends_on": ["task-123"]   // 可选
     }
