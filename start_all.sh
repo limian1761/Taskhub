@@ -13,7 +13,7 @@ TASKHUB_PID=$!
 
 # Start Admin service
 echo "Starting API Server on port 8000..."
-uvicorn src.api_server:app --host 0.0.0.0 --port 8000 --reload --reload-dir src &
+uvicorn src.taskhub.api:app --host 0.0.0.0 --port 8000 --reload --reload-dir src &
 API_PID=$!
 
 echo ""

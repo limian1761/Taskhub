@@ -5,8 +5,9 @@
     "transport": "sse"
   },
   "storage": {
-    "type": "json",
-    "data_dir":"data"
+    "type": "sqlite",
+    "data_dir": "..\\data",
+    "namespace": "default"
   },
   "task": {
     "default_lease_duration": 30,
