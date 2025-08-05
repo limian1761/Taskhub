@@ -19,6 +19,13 @@ class TaskStatus(str, Enum):
     ARCHIVED = "archived"
 
 
+class TaskType(str, Enum):
+    """任务类型枚举"""
+
+    NORMAL = "NORMAL"
+    EVALUATION = "EVALUATION"
+
+
 class TaskEvaluation(BaseModel):
     """任务评价信息"""
 
@@ -36,17 +43,20 @@ class Task(BaseModel):
     name: str = Field(..., description="任务名称")
     details: str = Field(..., description="任务详情")
     required_skill: str = Field(..., description="完成任务所需的核心技能")
-    status: str = Field(default="pending", description="任务状态")
-    hunter_id: str | None = None
+    status: TaskStatus = Field(default=TaskStatus.PENDING, description="任务状态")
+    priority: int = Field(default=0, description="任务优先级，由发布者声望决定")
+    hunter_id: str | None = Field(None, description="认领任务的猎人ID")
     lease_id: str | None = None
     lease_expires_at: datetime | None = None
     depends_on: list[str] = Field(default_factory=list)
     parent_task_id: str | None = None
-    created_by: str | None = Field(None, description="任务创建者ID")
+    published_by_hunter_id: str | None = Field(None, description="任务发布者ID")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     evaluation: TaskEvaluation | None = Field(None, description="任务评价信息")
     is_archived: bool = Field(default=False, description="是否已归档")
+    task_type: TaskType = Field(default=TaskType.NORMAL, description="任务类型")
+    report_id: str | None = Field(None, description="关联的报告ID")
 
 
 class TaskCreateRequest(BaseModel):

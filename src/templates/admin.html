@@ -138,10 +138,10 @@
         <!-- Data Management Sections -->
         <div class="section">
             <div class="section-header">
-                <h2>Agents</h2>
-                <button id="refresh-agents-btn" class="btn-info">Refresh</button>
+                <h2>Hunters</h2>
+                <button id="refresh-hunters-btn" class="btn-info">Refresh</button>
             </div>
-            <table id="agents-table">
+            <table id="hunters-table">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -187,7 +187,7 @@
                     <tr>
                         <th>ID</th>
                         <th>Task ID</th>
-                        <th>Agent ID</th>
+                        <th>Hunter ID</th>
                         <th>Status</th>
                         <th>Details</th>
                         <th>Result</th>
@@ -273,26 +273,26 @@
         }
 
         // Data fetching functions
-        async function fetchAgents() {
+        async function fetchHunters() {
             try {
-                const agents = await apiRequest('/api/agents');
-                const tableBody = document.querySelector('#agents-table tbody');
+                const hunters = await apiRequest('/api/hunters');
+                const tableBody = document.querySelector('#hunters-table tbody');
                 tableBody.innerHTML = '';
-                agents.forEach(agent => {
+                hunters.forEach(hunter => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td>${agent.id}</td>
-                        <td>${agent.name}</td>
-                        <td>${agent.reputation}</td>
-                        <td>${agent.capabilities.join(', ')}</td>
-                        <td>${agent.status}</td>
-                        <td><button class="btn-danger" onclick="deleteAgent('${agent.id}')">Delete</button></td>
+                        <td>${hunter.id}</td>
+                        <td>${hunter.name}</td>
+                        <td>${hunter.reputation}</td>
+                        <td>${hunter.capabilities.join(', ')}</td>
+                        <td>${hunter.status}</td>
+                        <td><button class="btn-danger" onclick="deleteHunter('${hunter.id}')">Delete</button></td>
                     `;
                     tableBody.appendChild(row);
                 });
             } catch (error) {
-                console.error('Error fetching agents:', error);
-                alert('Error fetching agents: ' + error.message);
+                console.error('Error fetching hunters:', error);
+                alert('Error fetching hunters: ' + error.message);
             }
         }
 
@@ -312,7 +312,7 @@
                         <td>${task.assignee || 'Unassigned'}</td>
                         <td>
                             <button class="btn-danger" onclick="deleteTask('${task.id}')">Delete</button>
-                            <button class="btn-success" onclick="claimTask('${task.id}', prompt('Enter Agent ID:'))">Claim</button>
+                            <button class="btn-success" onclick="claimTask('${task.id}', prompt('Enter Hunter ID:'))">Claim</button>
                         </td>
                     `;
                     tableBody.appendChild(row);
@@ -348,13 +348,13 @@
         }
 
         // Data deletion functions
-        async function deleteAgent(agentId) {
-            if (!confirm(`Are you sure you want to delete agent ${agentId}?`)) return;
+        async function deleteHunter(hunterId) {
+            if (!confirm(`Are you sure you want to delete hunter ${hunterId}?`)) return;
             try {
-                await apiRequest(`/api/agents/${agentId}`, 'DELETE');
-                fetchAgents();
+                await apiRequest(`/api/hunters/${hunterId}`, 'DELETE');
+                fetchHunters();
             } catch (error) {
-                alert('Error deleting agent: ' + error.message);
+                alert('Error deleting hunter: ' + error.message);
             }
         }
 
@@ -379,13 +379,13 @@
         }
 
         // Task claiming function
-        async function claimTask(taskId, agentId) {
-            if (!taskId || !agentId) {
-                alert('Task ID and Agent ID are required.');
+        async function claimTask(taskId, hunterId) {
+            if (!taskId || !hunterId) {
+                alert('Task ID and Hunter ID are required.');
                 return;
             }
             try {
-                const result = await apiRequest(`/api/tasks/${taskId}/claim`, 'POST', { agent_id: agentId });
+                const result = await apiRequest(`/api/tasks/${taskId}/claim`, 'POST', { hunter_id: hunterId });
                 alert('Task claimed successfully: ' + JSON.stringify(result));
                 fetchTasks();
             } catch (error) {
@@ -420,13 +420,13 @@
             document.getElementById('start-btn').addEventListener('click', startService);
             document.getElementById('stop-btn').addEventListener('click', stopService);
             document.getElementById('restart-btn').addEventListener('click', restartService);
-            document.getElementById('refresh-agents-btn').addEventListener('click', fetchAgents);
+            document.getElementById('refresh-agents-btn').addEventListener('click', fetchHunters);
             document.getElementById('refresh-tasks-btn').addEventListener('click', fetchTasks);
             document.getElementById('refresh-reports-btn').addEventListener('click', fetchReports);
             
             // Initial data fetch
             updateStatus();
-            fetchAgents();
+            fetchHunters();
             fetchTasks();
             fetchReports();
         });

@@ -3,11 +3,11 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 
-from taskhub.models.agent import Agent
+from taskhub.models.hunter import Hunter
 from taskhub.models.task import Task
 from taskhub.storage.sqlite_store import SQLiteStore
 from taskhub.services import (
-    agent_register,
+    hunter_register,
     domain_create,
     task_delete,
     task_publish,
@@ -24,20 +24,17 @@ async def db() -> AsyncGenerator[SQLiteStore, None]:
 
 
 @pytest.mark.asyncio
-async def test_agent_register_updated(db: SQLiteStore):
-    agent_id = "test-agent-001"
-    capabilities = ["python", "testing"]
-    domain_scores = {"d-test-123": 50.0}
+async def test_hunter_register_updated(db: SQLiteStore):
+    hunter_id = "test-hunter-001"
+    skills = {"python": 80, "testing": 60}
 
-    agent = await agent_register(
-        db, agent_id=agent_id, name=agent_id, capabilities=capabilities, domain_scores=domain_scores
+    hunter = await hunter_register(
+        db, hunter_id=hunter_id, skills=skills
     )
 
-    assert isinstance(agent, Agent)
-    assert agent.id == agent_id
-    assert agent.name == agent_id
-    assert agent.capabilities == capabilities
-    assert agent.domain_scores == domain_scores
+    assert isinstance(hunter, Hunter)
+    assert hunter.id == hunter_id
+    assert hunter.skills == skills
 
 
 @pytest.mark.asyncio

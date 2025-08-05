@@ -91,11 +91,11 @@
                 <div class="bg-white rounded-lg shadow p-6">
                     <div class="flex items-center">
                         <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
-                            <i class="fas fa-robot text-white text-xl"></i>
+                            <i class="fas fa-user-secret text-white text-xl"></i>
                         </div>
                         <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-500">代理数</p>
-                            <p class="text-2xl font-bold text-gray-900" x-text="stats.agents.total">0</p>
+                            <p class="text-sm font-medium text-gray-500">猎人数</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="stats.hunters.total">0</p>
                         </div>
                     </div>
                 </div>
@@ -140,34 +140,34 @@
                     </div>
                 </div>
 
-                <!-- 代理管理 -->
+                <!-- 猎人管理 -->
                 <div class="bg-white rounded-lg shadow">
                     <div class="px-6 py-4 border-b border-gray-200">
                         <div class="flex justify-between items-center">
-                            <h2 class="text-lg font-semibold text-gray-900">代理管理</h2>
-                            <button @click="showCreateAgent = true" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                                <i class="fas fa-plus mr-2"></i>添加代理
+                            <h2 class="text-lg font-semibold text-gray-900">猎人管理</h2>
+                            <button @click="showCreateHunter = true" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                                <i class="fas fa-plus mr-2"></i>添加猎人
                             </button>
                         </div>
                     </div>
                     <div class="p-6">
                         <div class="space-y-4 max-h-96 overflow-y-auto">
-                            <template x-for="agent in agents" :key="agent.id">
+                            <template x-for="hunter in hunters" :key="hunter.id">
                                 <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
                                     <div class="flex justify-between items-start">
                                         <div class="flex-1">
-                                            <h3 class="font-semibold text-gray-900" x-text="agent.name"></h3>
+                                            <h3 class="font-semibold text-gray-900" x-text="hunter.name"></h3>
                                             <div class="flex flex-wrap mt-1">
-                                                <template x-for="cap in agent.capabilities" :key="cap">
+                                                <template x-for="cap in hunter.capabilities" :key="cap">
                                                     <span class="text-xs bg-gray-200 px-2 py-1 rounded mr-1 mb-1" x-text="cap"></span>
                                                 </template>
                                             </div>
                                             <p class="text-sm text-gray-600 mt-1">
-                                                当前任务: <span x-text="agent.current_tasks.length"></span>
+                                                当前任务: <span x-text="hunter.current_tasks.length"></span>
                                             </p>
                                         </div>
                                         <div class="flex space-x-2">
-                                            <button @click="deleteAgent(agent.id)" class="text-red-600 hover:text-red-800">
+                                            <button @click="deleteHunter(hunter.id)" class="text-red-600 hover:text-red-800">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </div>
@@ -207,22 +207,22 @@
             </div>
         </div>
 
-        <!-- 创建代理模态框 -->
-        <div x-show="showCreateAgent" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" style="display: none;">
+        <!-- 创建猎人模态框 -->
+        <div x-show="showCreateHunter" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" style="display: none;">
             <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
                 <div class="mt-3">
-                    <h3 class="text-lg font-medium text-gray-900">添加新代理</h3>
-                    <form @submit.prevent="createAgent()" class="mt-4 space-y-4">
+                    <h3 class="text-lg font-medium text-gray-900">添加新猎人</h3>
+                    <form @submit.prevent="createHunter()" class="mt-4 space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">代理名称</label>
-                            <input type="text" x-model="newAgent.name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+                            <label class="block text-sm font-medium text-gray-700">猎人名称</label>
+                            <input type="text" x-model="newHunter.name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">能力列表（逗号分隔）</label>
-                            <input type="text" x-model="newAgent.capabilities" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="python, data-analysis, web-scraping">
+                            <input type="text" x-model="newHunter.capabilities" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="python, data-analysis, web-scraping">
                         </div>
                         <div class="flex justify-end space-x-2">
-                            <button type="button" @click="showCreateAgent = false" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">取消</button>
+                            <button type="button" @click="showCreateHunter = false" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">取消</button>
                             <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">添加</button>
                         </div>
                     </form>
@@ -236,16 +236,16 @@
             return {
                 loading: false,
                 tasks: [],
-                agents: [],
+                hunters: [],
                 stats: {
                     tasks: { total: 0, pending: 0, claimed: 0, completed: 0, failed: 0 },
-                    agents: { total: 0, active: 0, busy: 0 }
+                    hunters: { total: 0, active: 0, busy: 0 }
                 },
                 lastUpdate: '',
                 showCreateTask: false,
-                showCreateAgent: false,
+                showCreateHunter: false,
                 newTask: { name: '', details: '', capability: '' },
-                newAgent: { name: '', capabilities: '' },
+                newHunter: { name: '', capabilities: '' },
 
                 init() {
                     this.refreshData();
@@ -257,7 +257,7 @@
                     try {
                         await Promise.all([
                             this.fetchTasks(),
-                            this.fetchAgents(),
+                            this.fetchHunters(),
                             this.fetchStats(),
                             this.fetchReports()
                         ]);
@@ -275,11 +275,11 @@
                     }
                 },
 
-                async fetchAgents() {
-                    const response = await fetch('/api/agents');
+                async fetchHunters() {
+                    const response = await fetch('/api/hunters');
                     const data = await response.json();
                     if (data.success) {
-                        this.agents = data.data;
+                        this.hunters = data.data;
                     }
                 },
 
@@ -313,10 +313,10 @@
                     }
                 },
 
-                async createAgent() {
-                    const capabilities = this.newAgent.capabilities.split(',').map(c => c.trim()).filter(c => c);
-                    const agentData = {
-                        ...this.newAgent,
+                async createHunter() {
+                    const capabilities = this.newHunter.capabilities.split(',').map(c => c.trim()).filter(c => c);
+                    const hunterData = {
+                        ...this.newHunter,
                         capabilities,
                         current_tasks: [],
                         completed_tasks: 0,
@@ -327,15 +327,15 @@
                         updated_at: new Date().toISOString()
                     };
                     
-                    const response = await fetch('/api/agents', {
+                    const response = await fetch('/api/hunters', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(agentData)
+                        body: JSON.stringify(hunterData)
                     });
                     
                     if (response.ok) {
-                        this.showCreateAgent = false;
-                        this.newAgent = { name: '', capabilities: '' };
+                        this.showCreateHunter = false;
+                        this.newHunter = { name: '', capabilities: '' };
                         await this.refreshData();
                     }
                 },
@@ -352,10 +352,10 @@
                     }
                 },
 
-                async deleteAgent(agentId) {
-                    if (confirm('确定要删除这个代理吗？')) {
-                        // 这里可以添加删除代理的API调用
-                        alert('代理删除功能开发中...');
+                async deleteHunter(hunterId) {
+                    if (confirm('确定要删除这个猎人吗？')) {
+                        // 这里可以添加删除猎人的API调用
+                        alert('猎人删除功能开发中...');
                     }
                 },
 

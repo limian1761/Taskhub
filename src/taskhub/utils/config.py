@@ -1,187 +1,126 @@
 """
-配置管理模块
-
-该模块提供了配置文件的加载、管理和访问功能。
-支持从文件加载配置，也支持通过环境变量覆盖配置。
+Configuration management for Taskhub.
 """
 
 import json
-import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
+
+# Default configuration
+DEFAULT_CONFIG = {
+    "server": {
+        "host": "localhost",
+        "port": 8000,
+        "transport": "stdio"
+    },
+    "storage": {
+        "type": "sqlite",
+        "data_dir": "data",
+        "namespace": "default"
+    },
+    "task": {
+        "default_lease_duration": 30,
+        "max_lease_duration": 120,
+        "cleanup_interval": 300
+    },
+    "database": {
+        "directory": "data",
+        "filename_pattern": "taskhub_{namespace}.db",
+        "default_namespace": "default"
+    },
+    "defaults": {
+        "hunter_id": "unknown"
+    },
+    "logging": {
+        "directory": "logs"
+    }
+}
 
 
-class Config:
-    """配置管理类"""
-
-    def __init__(self):
-        """
-        初始化配置管理器
-
-        配置路径将自动解析到 src/configs 目录。
-        """
-        # 基准路径设置为本文件所在目录的父目录的父目录 (项目根目录)
-        base_path = Path(__file__).parent.parent.parent
-
-        # 配置文件路径
-        self.config_dir = base_path / "configs"
-        self.config_file = self.config_dir / "config.json"
-        self.logging_file = self.config_dir / "logging.json"
-
-        # 数据目录
-        self.data_dir = base_path / "data"
-
-        self._config = {}
-        self._logging_config = {}
-        self._load_configs()
-
-        # 应用环境变量覆盖
-        self._apply_env_overrides()
-
-    def _load_configs(self):
-        """加载配置文件"""
-        # 加载主配置
-        if self.config_file.exists():
-            with open(self.config_file, encoding="utf-8") as f:
-                self._config = json.load(f) or {}
-        else:
-            self._config = self._get_default_config()
-            self._save_config()
-
-        # 加载日志配置
-        if self.logging_file.exists():
-            with open(self.logging_file, encoding="utf-8") as f:
-                self._logging_config = json.load(f) or {}
-        else:
-            self._logging_config = self._get_default_logging_config()
-            self._save_logging_config()
-
-    def _get_default_config(self):
-        """获取默认配置"""
-        return {
-            "server": {"host": "localhost", "port": 8000, "transport": "stdio"},
-            "storage": {
-                "type": "json",
-                "data_dir": str(self.data_dir),  # 相对于工作目录的数据存储路径
-            },
-            "task": {"default_lease_duration": 30, "max_lease_duration": 120, "cleanup_interval": 300},
-        }
-
-    def _get_default_logging_config(self):
-        """获取默认日志配置"""
-        return {
-            "version": 1,
-            "disable_existing_loggers": False,
-            "formatters": {"standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"}},
-            "handlers": {"null": {"class": "logging.NullHandler"}},
-            "loggers": {
-                "": {"handlers": ["null"], "level": "CRITICAL", "propagate": False},
-                "taskhub": {"handlers": ["null"], "level": "CRITICAL", "propagate": False},
-                "taskhub.request": {"handlers": ["null"], "level": "CRITICAL", "propagate": False},
-            },
-        }
-
-    def _save_config(self):
-        """保存主配置文件"""
-        self.config_dir.mkdir(exist_ok=True)
-        with open(self.config_file, "w", encoding="utf-8") as f:
-            json.dump(self._config, f, indent=2, ensure_ascii=False)
-
-    def _save_logging_config(self):
-        """保存日志配置文件"""
-        self.config_dir.mkdir(exist_ok=True)
-        with open(self.logging_file, "w", encoding="utf-8") as f:
-            json.dump(self._logging_config, f, indent=2, ensure_ascii=False)
-
-    def _apply_env_overrides(self):
-        """应用环境变量覆盖配置"""
-        # 数据目录配置
-        data_dir = os.environ.get("TASKHUB_DATA_DIR")
-        if data_dir:
-            self.set("storage.data_dir", data_dir)
-
-        # 服务器配置
-        host = os.environ.get("TASKHUB_HOST")
-        if host:
-            self.set("server.host", host)
-
-        port = os.environ.get("TASKHUB_PORT")
-        if port:
-            try:
-                self.set("server.port", int(port))
-            except ValueError:
-                pass  # 如果端口号无效，保持默认值
-
-        transport = os.environ.get("TASKHUB_TRANSPORT")
-        if transport:
-            self.set("server.transport", transport)
-
-        # 任务配置
-        lease_duration = os.environ.get("TASKHUB_LEASE_DURATION")
-        if lease_duration:
-            try:
-                self.set("task.default_lease_duration", int(lease_duration))
-            except ValueError:
-                pass
-
-        max_lease = os.environ.get("TASKHUB_MAX_LEASE")
-        if max_lease:
-            try:
-                self.set("task.max_lease_duration", int(max_lease))
-            except ValueError:
-                pass
-
-        cleanup = os.environ.get("TASKHUB_CLEANUP_INTERVAL")
-        if cleanup:
-            try:
-                self.set("task.cleanup_interval", int(cleanup))
-            except ValueError:
-                pass
-
-    def get(self, key_path: str, default: Any = None) -> Any:
-        """
-        获取配置值
-
+class TaskhubConfig:
+    """Taskhub configuration manager."""
+    
+    def __init__(self, config_path: str = "src/configs/config.json"):
+        """Initialize the configuration manager.
+        
         Args:
-            key_path: 配置键路径，使用点号分隔，如 "server.host"
-            default: 默认值
-
+            config_path: Path to the configuration file.
+        """
+        self.config_path = Path(config_path)
+        self.config = self._load_config()
+    
+    def _load_config(self) -> Dict[str, Any]:
+        """Load configuration from file or use defaults.
+        
         Returns:
-            配置值或默认值
+            Configuration dictionary.
         """
-        keys = key_path.split(".")
-        value = self._config
-
-        try:
-            for key in keys:
-                value = value[key]
-            return value
-        except (KeyError, TypeError):
-            return default
-
-    def set(self, key_path: str, value: Any):
-        """
-        设置配置值
-
+        config = DEFAULT_CONFIG.copy()
+        
+        if self.config_path.exists():
+            try:
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    file_config = json.load(f)
+                    # Merge with defaults
+                    self._deep_merge(config, file_config)
+            except Exception as e:
+                print(f"Warning: Could not load config file {self.config_path}: {e}")
+                print("Using default configuration.")
+        
+        return config
+    
+    def _deep_merge(self, base: Dict, override: Dict) -> None:
+        """Deep merge two dictionaries.
+        
         Args:
-            key_path: 配置键路径，使用点号分隔，如 "server.host"
-            value: 要设置的值
+            base: Base dictionary.
+            override: Dictionary with override values.
         """
-        keys = key_path.split(".")
-        config = self._config
+        for key, value in override.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                self._deep_merge(base[key], value)
+            else:
+                base[key] = value
+    
+    def get_database_path(self, namespace: str) -> str:
+        """Get the database path for a given namespace.
+        
+        Args:
+            namespace: The namespace.
+            
+        Returns:
+            Database file path.
+        """
+        db_config = self.config["database"]
+        directory = db_config["directory"]
+        filename_pattern = db_config["filename_pattern"]
+        filename = filename_pattern.format(namespace=namespace)
+        return f"{directory}/{filename}"
+    
+    def get_default_namespace(self) -> str:
+        """Get the default namespace.
+        
+        Returns:
+            Default namespace.
+        """
+        return self.config["database"]["default_namespace"]
+    
+    def get_default_hunter_id(self) -> str:
+        """Get the default hunter ID.
+        
+        Returns:
+            Default hunter ID.
+        """
+        return self.config["defaults"]["hunter_id"]
+    
+    def get_server_config(self) -> Dict[str, Any]:
+        """Get server configuration.
+        
+        Returns:
+            Server configuration dictionary.
+        """
+        return self.config["server"]
 
-        # 导航到倒数第二层
-        for key in keys[:-1]:
-            if key not in config:
-                config[key] = {}
-            config = config[key]
 
-        # 设置最后一层的值
-        config[keys[-1]] = value
-
-        # 保存配置
-        self._save_config()
-
-
-# 全局配置实例
-config = Config()
+# Global configuration instance
+config = TaskhubConfig()

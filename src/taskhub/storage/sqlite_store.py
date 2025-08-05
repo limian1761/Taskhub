@@ -197,7 +197,69 @@ class SQLiteStore:
             return Report(**data)
         return None
 
-    # ... (knowledge methods remain the same)
+    async def save_knowledge_item(self, item: KnowledgeItem) -> None:
+        """Saves a knowledge item to the database and updates the FTS table."""
+        # Save to the main table
+        await self._execute_sync(
+            "INSERT OR REPLACE INTO knowledge_items (id, title, content, source, skill_tags, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                item.id,
+                item.title,
+                item.content,
+                item.source,
+                json.dumps(item.skill_tags),
+                item.created_by,
+                item.created_at.isoformat(),
+            ),
+        )
+        # Update the FTS table
+        await self._execute_sync(
+            "INSERT OR REPLACE INTO knowledge_items_fts (id, title, content) VALUES (?, ?, ?)",
+            (item.id, item.title, item.content),
+        )
+
+    async def get_knowledge_item(self, item_id: str) -> KnowledgeItem | None:
+        """Retrieves a knowledge item by its ID."""
+        cursor = await self._execute_sync("SELECT * FROM knowledge_items WHERE id = ?", (item_id,))
+        row = await anyio.to_thread.run_sync(cursor.fetchone)
+        if row:
+            data = dict(row)
+            data["skill_tags"] = json.loads(data["skill_tags"])
+            data["created_at"] = datetime.fromisoformat(data["created_at"])
+            return KnowledgeItem(**data)
+        return None
+
+    async def list_knowledge_items(self) -> list[KnowledgeItem]:
+        """Lists all knowledge items."""
+        cursor = await self._execute_sync("SELECT * FROM knowledge_items ORDER BY created_at DESC")
+        rows = await anyio.to_thread.run_sync(cursor.fetchall)
+        items = []
+        for row in rows:
+            data = dict(row)
+            data["skill_tags"] = json.loads(data["skill_tags"])
+            data["created_at"] = datetime.fromisoformat(data["created_at"])
+            items.append(KnowledgeItem(**data))
+        return items
+
+    async def search_knowledge(self, query: str, limit: int = 20) -> list[KnowledgeItem]:
+        """Searches knowledge items using FTS."""
+        sql = """
+            SELECT k.*
+            FROM knowledge_items k
+            JOIN knowledge_items_fts fts ON k.id = fts.id
+            WHERE fts.knowledge_items_fts MATCH ?
+            ORDER BY rank
+            LIMIT ?
+        """
+        cursor = await self._execute_sync(sql, (query, limit))
+        rows = await anyio.to_thread.run_sync(cursor.fetchall)
+        items = []
+        for row in rows:
+            data = dict(row)
+            data["skill_tags"] = json.loads(data["skill_tags"])
+            data["created_at"] = datetime.fromisoformat(data["created_at"])
+            items.append(KnowledgeItem(**data))
+        return items
 
     async def list_tasks(
         self, status: str | None = None, required_skill: str | None = None, hunter_id: str | None = None

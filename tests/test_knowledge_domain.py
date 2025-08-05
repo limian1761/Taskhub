@@ -5,8 +5,8 @@ import pytest_asyncio
 
 from taskhub.storage.sqlite_store import SQLiteStore
 from taskhub.services import (
-    agent_register,
-    agent_study,
+    hunter_register,
+    hunter_study,
     domain_create,
     knowledge_add,
 )
@@ -51,11 +51,11 @@ async def test_domain_and_knowledge_creation(db: SQLiteStore):
 
 
 @pytest.mark.asyncio
-async def test_agent_study(db: SQLiteStore):
-    agent = await agent_register(db, "test-agent", "test-agent", ["python"])
+async def test_hunter_study(db: SQLiteStore):
+    hunter = await hunter_register(db, "test-hunter", ["python"])
     domain = await domain_create(db, "Machine Learning", "ML concepts.")
     knowledge = await knowledge_add(db, "Scikit-learn", "...", "web", [domain.id], "admin")
 
-    updated_agent = await agent_study(db, agent.id, knowledge.id)
-    assert updated_agent is not None
-    assert updated_agent.domain_scores.get(domain.id, 0.0) > 0
+    updated_hunter = await hunter_study(db, hunter.id, knowledge.id)
+    assert updated_hunter is not None
+    assert updated_hunter.domain_scores.get(domain.id, 0.0) > 0

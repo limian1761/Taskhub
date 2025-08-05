@@ -12,6 +12,7 @@ class Hunter(BaseModel):
 
     id: str = Field(..., description="猎人唯一标识")
     skills: dict[str, int] = Field(default_factory=dict, description="猎人的技能及其熟练度分数")
+    reputation: int = Field(default=0, description="猎人声望")
     status: str = Field(default="active", description="猎人状态")
     current_tasks: list[str] = Field(default_factory=list, description="当前任务ID列表")
     completed_tasks: int = Field(default=0, description="已完成任务数量")

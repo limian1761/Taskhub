@@ -3,148 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taskhub Admin Panel</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <title>Taskhub Admin Dashboard</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
+        h1, h2 { color: #2c3e50; }
+        .container { max-width: 1200px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        #task-graph-container {
+            width: 100%;
+            height: 600px; /* 定义图表容器的高度 */
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+    </style>
+    <!-- 1. 引入 ECharts.js 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <aside class="sidebar">
-            <h1>Taskhub</h1>
-            <nav>
-                <ul>
-                    <li><a href="#" class="nav-link active" data-target="agents">Agents</a></li>
-                    <li><a href="#" class="nav-link" data-target="tasks">Tasks</a></li>
-                    <li><a href="#" class="nav-link" data-target="reports">Reports</a></li>
-                    <li><a href="#" class="nav-link" data-target="domains">Domains</a></li>
-                    <li><a href="#" class="nav-link" data-target="knowledge">Knowledge Base</a></li>
-                </ul>
-            </nav>
-        </aside>
-        <main class="content">
-            <section id="agents" class="data-section active">
-                <h2>Agents</h2>
-                <table id="agents-table"></table>
-            </section>
-            <section id="tasks" class="data-section">
-                <h2>Tasks</h2>
-                <table id="tasks-table"></table>
-            </section>
-            <section id="reports" class="data-section">
-                <h2>Reports</h2>
-                <table id="reports-table"></table>
-            </section>
-            <section id="domains" class="data-section">
-                <h2>Domains</h2>
-                <table id="domains-table"></table>
-            </section>
-            <section id="knowledge" class="data-section">
-                <h2>Knowledge Base</h2>
-                <table id="knowledge-table"></table>
-            </section>
-        </main>
+        <h1>Taskhub Admin Dashboard</h1>
+        
+        <h2>任务关系网络图 (Task Relationship Graph)</h2>
+        <p>动态展示猎人与任务之间的发布和认领关系。可以拖动节点、缩放视图。</p>
+        
+        <!-- 2. 创建一个用于承载图表的 DOM 容器 -->
+        <div id="task-graph-container"></div>
     </div>
+
+    <!-- 3. 编写初始化图表的 JavaScript 代码 -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const navLinks = document.querySelectorAll('.nav-link');
-            const dataSections = document.querySelectorAll('.data-section');
+        // 等待DOM加载完成
+        document.addEventListener("DOMContentLoaded", function () {
+            // 初始化ECharts实例
+            var myChart = echarts.init(document.getElementById('task-graph-container'));
 
-            navLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetId = this.getAttribute('data-target');
+            // 显示加载动画
+            myChart.showLoading();
 
-                    navLinks.forEach(nav => nav.classList.remove('active'));
-                    this.classList.add('active');
+            // 使用 fetch API 从后端获取图表数据
+            fetch('/api/system/task-graph')
+                .then(response => response.json())
+                .then(data => {
+                    // 隐藏加载动画
+                    myChart.hideLoading();
 
-                    dataSections.forEach(section => {
-                        if (section.id === targetId) {
-                            section.classList.add('active');
-                        } else {
-                            section.classList.remove('active');
-                        }
-                    });
+                    // ECharts 配置项
+                    var option = {
+                        title: {
+                            text: 'Hunter-Task Interaction Network'
+                        },
+                        tooltip: {
+                            formatter: function (params) {
+                                if (params.dataType === 'node') {
+                                    return `${params.data.name}<br/>Value: ${params.data.value}`;
+                                }
+                                return params.data.name;
+                            }
+                        },
+                        legend: [{
+                            data: data.categories.map(function (a) {
+                                return a.name;
+                            })
+                        }],
+                        series: [
+                            {
+                                name: 'Taskhub Graph',
+                                type: 'graph',
+                                layout: 'force', // 使用力引导布局
+                                data: data.nodes,
+                                links: data.links,
+                                categories: data.categories,
+                                roam: true, // 开启缩放和拖拽
+                                label: {
+                                    show: true,
+                                    position: 'right',
+                                    formatter: '{b}' // {b} 表示节点名称
+                                },
+                                force: {
+                                    repulsion: 100 // 节点间的斥力因子
+                                },
+                                edgeSymbol: ['circle', 'arrow'],
+                                edgeSymbolSize: [4, 10],
+                                edgeLabel: {
+                                    show: true,
+                                    formatter: function (params) {
+                                        return params.data.name;
+                                    }
+                                }
+                            }
+                        ]
+                    };
+
+                    // 使用配置项设置图表
+                    myChart.setOption(option);
+                })
+                .catch(error => {
+                    myChart.hideLoading();
+                    console.error('Error fetching graph data:', error);
+                    // 可以在图表容器中显示错误信息
+                    document.getElementById('task-graph-container').innerText = 'Failed to load graph data. Please check the console.';
                 });
-            });
-
-            async function fetchAndRenderData() {
-                try {
-                    const [agentsRes, tasksRes, reportsRes, domainsRes, knowledgeRes] = await Promise.all([
-                        fetch('/api/agents'),
-                        fetch('/api/tasks'),
-                        fetch('/api/reports'),
-                        fetch('/api/domains'),
-                        fetch('/api/knowledge')
-                    ]);
-
-                    renderAgents(await agentsRes.json());
-                    renderTasks(await tasksRes.json());
-                    renderReports(await reportsRes.json());
-                    renderDomains(await domainsRes.json());
-                    renderKnowledge(await knowledgeRes.json());
-
-                } catch (error) {
-                    console.error('Failed to fetch data:', error);
-                }
-            }
-
-            function renderAgents(agents) {
-                const table = document.getElementById('agents-table');
-                let html = '<thead><tr><th>ID</th><th>Name</th><th>Capabilities</th><th>Domain Scores</th><th>Status</th><th>Current Tasks</th></tr></thead><tbody>';
-                for (const agent of agents) {
-                    const domainScores = Object.entries(agent.domain_scores).map(([domain, score]) => `${domain}: ${score}`).join('<br>');
-                    html += `<tr>
-                        <td>${agent.id}</td>
-                        <td>${agent.name}</td>
-                        <td>${agent.capabilities.join(', ')}</td>
-                        <td>${domainScores}</td>
-                        <td>${agent.status}</td>
-                        <td>${agent.current_tasks.length}</td>
-                    </tr>`;
-                }
-                html += '</tbody>';
-                table.innerHTML = html;
-            }
-
-            function renderTasks(tasks) {
-                // Implementation for rendering tasks
-            }
-
-            function renderReports(reports) {
-                // Implementation for rendering reports
-            }
-
-            function renderDomains(domains) {
-                const table = document.getElementById('domains-table');
-                let html = '<thead><tr><th>ID</th><th>Name</th><th>Description</th></tr></thead><tbody>';
-                for (const domain of domains) {
-                    html += `<tr>
-                        <td>${domain.id}</td>
-                        <td>${domain.name}</td>
-                        <td>${domain.description}</td>
-                    </tr>`;
-                }
-                html += '</tbody>';
-                table.innerHTML = html;
-            }
-
-            function renderKnowledge(items) {
-                const table = document.getElementById('knowledge-table');
-                let html = '<thead><tr><th>ID</th><th>Title</th><th>Source</th><th>Domains</th><th>Created By</th></tr></thead><tbody>';
-                for (const item of items) {
-                    html += `<tr>
-                        <td>${item.id}</td>
-                        <td>${item.title}</td>
-                        <td>${item.source}</td>
-                        <td>${item.domain_tags.join(', ')}</td>
-                        <td>${item.created_by}</td>
-                    </tr>`;
-                }
-                html += '</tbody>';
-                table.innerHTML = html;
-            }
-
-            fetchAndRenderData();
-            setInterval(fetchAndRenderData, 15000); // Auto-refresh every 15 seconds
+            
+            // 窗口大小改变时，重置图表大小
+            window.onresize = function () {
+                myChart.resize();
+            };
         });
     </script>
 </body>

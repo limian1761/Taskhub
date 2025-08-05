@@ -13,7 +13,7 @@ title Taskhub Service Launcher
 
 REM Start main Taskhub MCP service
 echo Starting Main Taskhub Server on port 3000...
-start "Taskhub Main Server" cmd /c "cd /d %~dp0 && python -m taskhub --transport sse --host 0.0.0.0 --port 3000"
+start "Taskhub Main Server" cmd /k "cd /d %~dp0 && python -m taskhub --transport sse --host 0.0.0.0 --port 3000"
 
 REM Start Admin service
 echo Starting API Server on port 8000...
