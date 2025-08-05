@@ -4,7 +4,7 @@ import pytest
 import pytest_asyncio
 
 from taskhub.storage.sqlite_store import SQLiteStore
-from taskhub.tools.taskhub import (
+from taskhub.services import (
     agent_register,
     agent_study,
     domain_create,

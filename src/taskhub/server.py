@@ -11,7 +11,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.shared.context import RequestContext
 from pydantic import Field
 
-import taskhub.tools.taskhub as taskhub_api
+import taskhub.services as taskhub_api
 from taskhub.models.task import TaskStatus
 from taskhub.storage.sqlite_store import SQLiteStore
 

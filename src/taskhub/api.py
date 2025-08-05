@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from taskhub.storage.sqlite_store import SQLiteStore
-from taskhub.tools.taskhub import (
+from taskhub.services import (
     hunter_list,
     hunter_register,
     hunter_study,

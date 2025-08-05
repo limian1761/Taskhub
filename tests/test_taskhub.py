@@ -6,7 +6,7 @@ import pytest_asyncio
 from taskhub.models.agent import Agent
 from taskhub.models.task import Task
 from taskhub.storage.sqlite_store import SQLiteStore
-from taskhub.tools.taskhub import (
+from taskhub.services import (
     agent_register,
     domain_create,
     task_delete,
