@@ -28,16 +28,44 @@ def register_hunter_tools(app):
         If the hunter already exists, it will update their skills. This is typically called
         when a hunter first connects to the system.
         
+        Note: Hunters' skills are associated with skill domains. In Taskhub, skills and domains 
+        are the same concept but with different names used in different contexts:
+        - "Skill" is used when referring to hunter abilities or task requirements
+        - "Domain" is used when referring to knowledge areas or categories
+        
+        You can only specify skills that already exist in the system. If you need a new skill 
+        domain, you must first create it using the domain creation tool.
+        
+        If you're an existing hunter looking to update your skills (for example, when your 
+        current skills are insufficient for available tasks), you can call this tool with 
+        new or updated skill values. Existing skills will be preserved, and new skills will 
+        be added without overwriting existing ones.
+        
         Args:
             ctx: The MCP context containing session information.
             skills: Optional dictionary mapping skill names to initial skill levels (0-100).
+                   Skill names must be from existing skill domains in the system.
             
         Returns:
             A dictionary representation of the registered hunter object, along with the system guide.
         """
         store = get_store(cast(RequestContext, ctx.request_context))
         hunter_id = ctx.session.hunter_id
+        
+        # 打印请求头信息
+        request_context = cast(RequestContext, ctx.request_context)
+        if request_context.request:
+            headers = dict(request_context.request.headers)
+            logger.info(f"Request headers: {headers}")
+        
+        logger.info(f"Registering hunter with ID: {hunter_id}")
+        if skills:
+            logger.debug(f"Initial skills for hunter {hunter_id}: {skills}")
+        
         hunter = await hunter_register(store, hunter_id, skills)
+        
+        # 记录猎人注册成功
+        logger.info(f"Hunter {hunter_id} registered successfully with reputation: {hunter.reputation}")
         
         # 获取系统指南
         from taskhub.services.system_service import get_system_guide
@@ -46,6 +74,8 @@ def register_hunter_tools(app):
         # 返回猎人信息和系统指南
         result = hunter.model_dump()
         result["system_guide"] = system_guide
+        
+        logger.debug(f"Returning hunter info for {hunter_id}")
         return result
 
     @app.tool("taskhub.hunter.study")
@@ -55,6 +85,14 @@ def register_hunter_tools(app):
         This tool allows a hunter to study a knowledge item, which will increase their
         skill levels in the areas covered by that knowledge. This is the primary mechanism
         for hunters to improve their capabilities and qualify for more complex tasks.
+        
+        Note: Studying knowledge items will improve the hunter's skills in the corresponding
+        skill domains. In Taskhub, skills and domains are the same concept but with different 
+        names used in different contexts:
+        - "Skill" is used when referring to hunter abilities or task requirements
+        - "Domain" is used when referring to knowledge areas or categories
+        
+        Each knowledge item is tagged with one or more skill domains.
         
         Args:
             ctx: The MCP context containing session information.
@@ -68,7 +106,14 @@ def register_hunter_tools(app):
         """
         store = get_store(cast(RequestContext, ctx.request_context))
         hunter_id = ctx.session.hunter_id
+        
+        logger.info(f"Hunter {hunter_id} is studying knowledge item: {knowledge_id}")
+        
         hunter = await hunter_study(store, hunter_id, knowledge_id)
+        
+        logger.info(f"Hunter {hunter_id} successfully studied knowledge item {knowledge_id}")
+        logger.debug(f"Updated hunter skills: {hunter.skills}")
+        
         return hunter.model_dump()
 
     @app.resource("hunter://current")

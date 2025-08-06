@@ -39,11 +39,11 @@ async def test_domain_and_knowledge_creation(db: SQLiteStore):
         title=knowledge_title,
         content="...",
         source="internal",
-        domain_tags=[domain.id],
+        skill_tags=[domain.name],  # 使用skill_tags而不是domain_tags
         created_by="test-admin",
     )
     assert knowledge_item is not None
-    assert domain.id in knowledge_item.domain_tags
+    assert domain.name in knowledge_item.skill_tags
 
     retrieved_knowledge = await db.get_knowledge_item(knowledge_item.id)
     assert retrieved_knowledge is not None
@@ -52,10 +52,11 @@ async def test_domain_and_knowledge_creation(db: SQLiteStore):
 
 @pytest.mark.asyncio
 async def test_hunter_study(db: SQLiteStore):
-    hunter = await hunter_register(db, "test-hunter", ["python"])
+    # 传递一个字典而不是列表作为skills参数
+    hunter = await hunter_register(db, "test-hunter", {"python": 50})
     domain = await domain_create(db, "Machine Learning", "ML concepts.")
-    knowledge = await knowledge_add(db, "Scikit-learn", "...", "web", [domain.id], "admin")
+    knowledge = await knowledge_add(db, "Scikit-learn", "...", "web", [domain.name], "admin")
 
     updated_hunter = await hunter_study(db, hunter.id, knowledge.id)
     assert updated_hunter is not None
-    assert updated_hunter.domain_scores.get(domain.id, 0.0) > 0
+    assert updated_hunter.skills.get(domain.name, 0) > 0

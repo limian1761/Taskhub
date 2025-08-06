@@ -8,12 +8,12 @@ echo ""
 
 # Start main Taskhub MCP service
 echo "Starting Main Taskhub Server on port 3000..."
-python -m taskhub --host 0.0.0.0 --port 3000 --reload --reload-dir src &
+python -m taskhub --host localhost --port 3000 --reload --reload-dir src &
 TASKHUB_PID=$!
 
 # Start Admin service
 echo "Starting API Server on port 8000..."
-uvicorn src.taskhub.api:app --host 0.0.0.0 --port 8000 --reload --reload-dir src &
+uvicorn src.taskhub.api:app --host localhost --port 8000 --reload --reload-dir src &
 API_PID=$!
 
 echo ""

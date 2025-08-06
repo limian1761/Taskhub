@@ -1,434 +1,520 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taskhub Admin Panel</title>
+    <title>Taskhub Admin</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f7f9;
-            color: #333;
+            padding-top: 56px; /* 为固定顶部导航栏留出空间 */
         }
-        .container {
-            max-width: 1200px;
-            margin: auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        h1, h2 {
-            color: #2c3e50;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-            margin-top: 20px;
-        }
-        h1 { margin-top: 0; }
-        .section { margin-bottom: 30px; }
-        .controls {
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .status {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background-color: #ccc;
-        }
-        .status-indicator.running { background-color: #28a745; }
-        .status-indicator.stopped { background-color: #dc3545; }
-        .status-text { font-weight: bold; }
-        button {
-            padding: 8px 12px;
-            border: none;
-            border-radius: 5px;
-            color: #fff;
-            background-color: #007bff;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
-        }
-        button:hover { background-color: #0056b3; }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .btn-danger { background-color: #dc3545; }
-        .btn-danger:hover { background-color: #c82333; }
-        .btn-warning { background-color: #ffc107; color: #212529; }
-        .btn-warning:hover { background-color: #e0a800; }
-        .btn-info { background-color: #17a2b8; }
-        .btn-info:hover { background-color: #138496; }
-        .btn-success { background-color: #28a745; }
-        .btn-success:hover { background-color: #218838; }
-
-        #log-container {
-            background-color: #2c3e50;
-            color: #ecf0f1;
-            padding: 15px;
-            border-radius: 5px;
-            height: 300px;
+        .scrollable-discussion {
+            height: 400px;
             overflow-y: auto;
-            white-space: pre-wrap;
-            font-family: "Courier New", Courier, monospace;
-            font-size: 13px;
-            line-height: 1.5;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
+        .message {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
         }
-        th, td {
-            padding: 12px;
-            border: 1px solid #ddd;
-            text-align: left;
-            vertical-align: top;
+        .message:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
         }
-        th {
-            background-color: #f2f2f2;
+        .message-header {
             font-weight: bold;
+            color: #0d6efd;
         }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .message-time {
+            font-size: 0.8rem;
+            color: #6c757d;
         }
-        .word-break {
-            word-break: break-all;
+        .message-content {
+            margin-top: 0.25rem;
         }
-        
-        /* AI Tool Styles */
-
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Taskhub Admin Panel</h1>
-
-        <!-- Service Control Section -->
-        <div class="section">
-            <h2>Service Control</h2>
-            <div class="status">
-                <span>Service Status:</span>
-                <div id="status-indicator" class="status-indicator"></div>
-                <span id="status-text">Unknown</span>
-            </div>
-            <div class="controls">
-                <button id="start-btn">Start</button>
-                <button id="stop-btn" class="btn-danger">Stop</button>
-                <button id="restart-btn" class="btn-warning">Restart</button>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Taskhub Admin</a>
+            
+            <!-- 命名空间选择器 -->
+            <div class="navbar-nav ms-auto">
+                <div class="dropdown">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" id="namespaceDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        Namespace: <span id="currentNamespace">default</span>
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="namespaceDropdown" id="namespaceMenu">
+                        <!-- 命名空间选项将通过JavaScript动态填充 -->
+                    </ul>
+                </div>
             </div>
         </div>
+    </nav>
 
-        <!-- AI Management Tool -->
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12">
+                <!-- 标签页导航 -->
+                <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="discussion-tab" data-bs-toggle="tab" data-bs-target="#discussion" type="button" role="tab" aria-controls="discussion" aria-selected="true">Discussion</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="hunters-tab" data-bs-toggle="tab" data-bs-target="#hunters" type="button" role="tab" aria-controls="hunters" aria-selected="false">Hunters</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab" aria-controls="tasks" aria-selected="false">Tasks</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="knowledge-tab" data-bs-toggle="tab" data-bs-target="#knowledge" type="button" role="tab" aria-controls="knowledge" aria-selected="false">Knowledge</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab" aria-controls="reports" aria-selected="false">Reports</button>
+                    </li>
+                </ul>
 
-        <!-- Data Management Sections -->
-        <div class="section">
-            <div class="section-header">
-                <h2>Hunters</h2>
-                <button id="refresh-hunters-btn" class="btn-info">Refresh</button>
+                <!-- 标签页内容 -->
+                <div class="tab-content" id="adminTabContent">
+                    <!-- 讨论区标签 -->
+                    <div class="tab-pane fade show active" id="discussion" role="tabpanel" aria-labelledby="discussion-tab">
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">Discussion Forum</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- 消息历史区 -->
+                                        <div class="scrollable-discussion mb-3" id="discussionMessages">
+                                            <!-- 消息将通过JavaScript动态加载 -->
+                                            <div class="text-center text-muted">Loading messages...</div>
+                                        </div>
+                                        
+                                        <!-- 发布消息表单 -->
+                                        <form id="discussionForm">
+                                            <div class="mb-3">
+                                                <label for="hunterId" class="form-label">Hunter ID</label>
+                                                <input type="text" class="form-control" id="hunterId" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="messageContent" class="form-label">Message</label>
+                                                <textarea class="form-control" id="messageContent" rows="3" required></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">Post Message</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 猎人标签 -->
+                    <div class="tab-pane fade" id="hunters" role="tabpanel" aria-labelledby="hunters-tab">
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">Hunters</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="huntersContent">
+                                            <div class="text-center text-muted">Loading hunters...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 任务标签 -->
+                    <div class="tab-pane fade" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">Tasks</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="tasksContent">
+                                            <div class="text-center text-muted">Loading tasks...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 知识标签 -->
+                    <div class="tab-pane fade" id="knowledge" role="tabpanel" aria-labelledby="knowledge-tab">
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">Knowledge</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="knowledgeContent">
+                                            <div class="text-center text-muted">Loading knowledge...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 报告标签 -->
+                    <div class="tab-pane fade" id="reports" role="tabpanel" aria-labelledby="reports-tab">
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">Reports</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="reportsContent">
+                                            <div class="text-center text-muted">Loading reports...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <table id="hunters-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Reputation</th>
-                        <th>Capabilities</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-
-        <div class="section">
-            <div class="section-header">
-                <h2>Tasks</h2>
-                <button id="refresh-tasks-btn" class="btn-info">Refresh</button>
-            </div>
-            <table id="tasks-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Capability</th>
-                        <th>Status</th>
-                        <th>Assignee</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-
-        <div class="section">
-            <div class="section-header">
-                <h2>Reports</h2>
-                <button id="refresh-reports-btn" class="btn-info">Refresh</button>
-            </div>
-            <table id="reports-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Task ID</th>
-                        <th>Hunter ID</th>
-                        <th>Status</th>
-                        <th>Details</th>
-                        <th>Result</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-
-        <!-- Logs Section -->
-        <div class="section">
-            <h2>Logs</h2>
-            <div id="log-container"></div>
         </div>
     </div>
 
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 自定义JavaScript -->
     <script>
-        // Utility function for API requests
-        async function apiRequest(url, method = 'GET', body = null) {
-            const options = {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
+        // 获取URL参数
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            var results = regex.exec(window.location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+
+        // 设置命名空间
+        function setNamespace(namespace) {
+            const url = new URL(window.location);
+            url.searchParams.set('namespace', namespace);
+            window.location.href = url.toString();
+        }
+
+        // 获取当前命名空间
+        function getCurrentNamespace() {
+            return getUrlParameter('namespace') || 'default';
+        }
+
+        // 获取API URL
+        function getApiUrl(endpoint) {
+            const namespace = getCurrentNamespace();
+            return `/api${endpoint}?namespace=${namespace}`;
+        }
+
+        // 获取所有命名空间
+        async function fetchNamespaces() {
+            try {
+                const response = await fetch('/api/namespaces');
+                const namespaces = await response.json();
+                
+                const menu = document.getElementById('namespaceMenu');
+                menu.innerHTML = '';
+                
+                namespaces.forEach(ns => {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.className = 'dropdown-item';
+                    a.href = '#';
+                    a.textContent = ns;
+                    a.onclick = () => setNamespace(ns);
+                    li.appendChild(a);
+                    menu.appendChild(li);
+                });
+                
+                // 更新当前命名空间显示
+                document.getElementById('currentNamespace').textContent = getCurrentNamespace();
+            } catch (error) {
+                console.error('Error fetching namespaces:', error);
+            }
+        }
+
+        // 获取讨论消息
+        async function fetchDiscussionMessages() {
+            try {
+                const response = await fetch(getApiUrl('/discussion'));
+                const data = await response.json();
+                
+                const container = document.getElementById('discussionMessages');
+                if (data.messages && data.messages.length > 0) {
+                    container.innerHTML = data.messages.map(msg => `
+                        <div class="message">
+                            <div class="message-header">${msg.hunter_id}</div>
+                            <div class="message-time">${new Date(msg.created_at).toLocaleString()}</div>
+                            <div class="message-content">${msg.content}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="text-center text-muted">No messages yet.</div>';
                 }
-            };
-            if (body) {
-                options.body = JSON.stringify(body);
-            }
-            const response = await fetch(url, options);
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        }
-
-        // Utility function to update service status display
-        function updateStatusDisplay(status) {
-            const statusIndicator = document.getElementById('status-indicator');
-            const statusText = document.getElementById('status-text');
-            statusIndicator.className = 'status-indicator ' + (status === 'running' ? 'running' : 'stopped');
-            statusText.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-        }
-
-        // Function to update service status
-        async function updateStatus() {
-            try {
-                const data = await apiRequest('/api/status');
-                updateStatusDisplay(data.status);
             } catch (error) {
-                console.error('Error fetching status:', error);
-                updateStatusDisplay('error');
+                console.error('Error fetching discussion messages:', error);
+                document.getElementById('discussionMessages').innerHTML = '<div class="text-center text-danger">Error loading messages.</div>';
             }
         }
 
-        // Service control functions
-        async function startService() {
+        // 发布讨论消息
+        async function postDiscussionMessage(hunterId, content) {
             try {
-                await apiRequest('/api/start', 'POST');
-                updateStatus();
+                const response = await fetch(getApiUrl('/discussion'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        hunter_id: hunterId,
+                        content: content
+                    })
+                });
+                
+                if (response.ok) {
+                    // 清空表单
+                    document.getElementById('hunterId').value = '';
+                    document.getElementById('messageContent').value = '';
+                    
+                    // 刷新消息列表
+                    fetchDiscussionMessages();
+                } else {
+                    alert('Error posting message');
+                }
             } catch (error) {
-                alert('Error starting service: ' + error.message);
+                console.error('Error posting message:', error);
+                alert('Error posting message');
             }
         }
 
-        async function stopService() {
-            try {
-                await apiRequest('/api/stop', 'POST');
-                updateStatus();
-            } catch (error) {
-                alert('Error stopping service: ' + error.message);
-            }
-        }
-
-        async function restartService() {
-            try {
-                await apiRequest('/api/restart', 'POST');
-                updateStatus();
-            } catch (error) {
-                alert('Error restarting service: ' + error.message);
-            }
-        }
-
-        // Data fetching functions
+        // 获取猎人数据
         async function fetchHunters() {
             try {
-                const hunters = await apiRequest('/api/hunters');
-                const tableBody = document.querySelector('#hunters-table tbody');
-                tableBody.innerHTML = '';
-                hunters.forEach(hunter => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${hunter.id}</td>
-                        <td>${hunter.name}</td>
-                        <td>${hunter.reputation}</td>
-                        <td>${hunter.capabilities.join(', ')}</td>
-                        <td>${hunter.status}</td>
-                        <td><button class="btn-danger" onclick="deleteHunter('${hunter.id}')">Delete</button></td>
+                const response = await fetch(getApiUrl('/hunters'));
+                const data = await response.json();
+                
+                const container = document.getElementById('huntersContent');
+                if (data.hunters && data.hunters.length > 0) {
+                    container.innerHTML = `
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Skills</th>
+                                        <th>Reputation</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.hunters.map(hunter => `
+                                        <tr>
+                                            <td>${hunter.id}</td>
+                                            <td>${Object.entries(hunter.skills).map(([skill, level]) => `${skill}: ${level}`).join(', ')}</td>
+                                            <td>${hunter.reputation}</td>
+                                            <td>${new Date(hunter.created_at).toLocaleDateString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                     `;
-                    tableBody.appendChild(row);
-                });
+                } else {
+                    container.innerHTML = '<div class="text-center text-muted">No hunters found.</div>';
+                }
             } catch (error) {
                 console.error('Error fetching hunters:', error);
-                alert('Error fetching hunters: ' + error.message);
+                document.getElementById('huntersContent').innerHTML = '<div class="text-center text-danger">Error loading hunters.</div>';
             }
         }
 
+        // 获取任务数据
         async function fetchTasks() {
             try {
-                const tasks = await apiRequest('/api/tasks');
-                const tableBody = document.querySelector('#tasks-table tbody');
-                tableBody.innerHTML = '';
-                tasks.forEach(task => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${task.id}</td>
-                        <td>${task.name}</td>
-                        <td class="word-break">${task.details}</td>
-                        <td>${task.capability}</td>
-                        <td>${task.status}</td>
-                        <td>${task.assignee || 'Unassigned'}</td>
-                        <td>
-                            <button class="btn-danger" onclick="deleteTask('${task.id}')">Delete</button>
-                            <button class="btn-success" onclick="claimTask('${task.id}', prompt('Enter Hunter ID:'))">Claim</button>
-                        </td>
+                const response = await fetch(getApiUrl('/tasks'));
+                const data = await response.json();
+                
+                const container = document.getElementById('tasksContent');
+                if (data.tasks && data.tasks.length > 0) {
+                    container.innerHTML = `
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Required Skill</th>
+                                        <th>Status</th>
+                                        <th>Priority</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.tasks.map(task => `
+                                        <tr>
+                                            <td>${task.id.substring(0, 8)}...</td>
+                                            <td>${task.name}</td>
+                                            <td>${task.required_skill}</td>
+                                            <td>${task.status}</td>
+                                            <td>${task.priority}</td>
+                                            <td>${new Date(task.created_at).toLocaleDateString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                     `;
-                    tableBody.appendChild(row);
-                });
+                } else {
+                    container.innerHTML = '<div class="text-center text-muted">No tasks found.</div>';
+                }
             } catch (error) {
                 console.error('Error fetching tasks:', error);
-                alert('Error fetching tasks: ' + error.message);
+                document.getElementById('tasksContent').innerHTML = '<div class="text-center text-danger">Error loading tasks.</div>';
             }
         }
 
+        // 获取知识数据
+        async function fetchKnowledge() {
+            try {
+                const response = await fetch(getApiUrl('/knowledge'));
+                const data = await response.json();
+                
+                const container = document.getElementById('knowledgeContent');
+                if (data.items && data.items.length > 0) {
+                    container.innerHTML = `
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Skill Tags</th>
+                                        <th>Source</th>
+                                        <th>Created By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.items.map(item => `
+                                        <tr>
+                                            <td>${item.title}</td>
+                                            <td>${item.skill_tags.join(', ')}</td>
+                                            <td>${item.source}</td>
+                                            <td>${item.created_by}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<div class="text-center text-muted">No knowledge items found.</div>';
+                }
+            } catch (error) {
+                console.error('Error fetching knowledge:', error);
+                document.getElementById('knowledgeContent').innerHTML = '<div class="text-center text-danger">Error loading knowledge.</div>';
+            }
+        }
+
+        // 获取报告数据
         async function fetchReports() {
             try {
-                const reports = await apiRequest('/api/reports');
-                const tableBody = document.querySelector('#reports-table tbody');
-                tableBody.innerHTML = '';
-                reports.forEach(report => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${report.id}</td>
-                        <td>${report.task_id}</td>
-                        <td>${report.agent_id}</td>
-                        <td>${report.status}</td>
-                        <td class="word-break">${report.details || ''}</td>
-                        <td class="word-break">${report.result || ''}</td>
-                        <td><button class="btn-danger" onclick="deleteReport('${report.id}')">Delete</button></td>
+                const response = await fetch(getApiUrl('/reports'));
+                const data = await response.json();
+                
+                const container = document.getElementById('reportsContent');
+                if (data.reports && data.reports.length > 0) {
+                    container.innerHTML = `
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Task ID</th>
+                                        <th>Hunter ID</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.reports.map(report => `
+                                        <tr>
+                                            <td>${report.id.substring(0, 8)}...</td>
+                                            <td>${report.task_id.substring(0, 8)}...</td>
+                                            <td>${report.hunter_id}</td>
+                                            <td>${report.status}</td>
+                                            <td>${new Date(report.created_at).toLocaleDateString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                     `;
-                    tableBody.appendChild(row);
-                });
+                } else {
+                    container.innerHTML = '<div class="text-center text-muted">No reports found.</div>';
+                }
             } catch (error) {
                 console.error('Error fetching reports:', error);
-                alert('Error fetching reports: ' + error.message);
+                document.getElementById('reportsContent').innerHTML = '<div class="text-center text-danger">Error loading reports.</div>';
             }
         }
 
-        // Data deletion functions
-        async function deleteHunter(hunterId) {
-            if (!confirm(`Are you sure you want to delete hunter ${hunterId}?`)) return;
-            try {
-                await apiRequest(`/api/hunters/${hunterId}`, 'DELETE');
-                fetchHunters();
-            } catch (error) {
-                alert('Error deleting hunter: ' + error.message);
-            }
-        }
-
-        async function deleteTask(taskId) {
-            if (!confirm(`Are you sure you want to delete task ${taskId}?`)) return;
-            try {
-                await apiRequest(`/api/tasks/${taskId}`, 'DELETE');
-                fetchTasks();
-            } catch (error) {
-                alert('Error deleting task: ' + error.message);
-            }
-        }
-
-        async function deleteReport(reportId) {
-            if (!confirm(`Are you sure you want to delete report ${reportId}?`)) return;
-            try {
-                await apiRequest(`/api/reports/${reportId}`, 'DELETE');
-                fetchReports();
-            } catch (error) {
-                alert('Error deleting report: ' + error.message);
-            }
-        }
-
-        // Task claiming function
-        async function claimTask(taskId, hunterId) {
-            if (!taskId || !hunterId) {
-                alert('Task ID and Hunter ID are required.');
-                return;
-            }
-            try {
-                const result = await apiRequest(`/api/tasks/${taskId}/claim`, 'POST', { hunter_id: hunterId });
-                alert('Task claimed successfully: ' + JSON.stringify(result));
-                fetchTasks();
-            } catch (error) {
-                alert('Error claiming task: ' + error.message);
-            }
-        }
-
-        // AI Tool Functions
-
-        // WebSocket for logs
-        const ws = new WebSocket(`ws://${window.location.host}/ws/logs`);
-        
-        ws.onmessage = function(event) {
-            const logContainer = document.getElementById('log-container');
-            const message = document.createElement('div');
-            message.textContent = event.data;
-            logContainer.appendChild(message);
-            logContainer.scrollTop = logContainer.scrollHeight;
-        };
-        
-        ws.onclose = function() {
-            console.log('WebSocket connection closed');
-        };
-        
-        ws.onerror = function(error) {
-            console.error('WebSocket error:', error);
-        };
-
-        // Initialize the page
+        // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
-            // Set up event listeners
-            document.getElementById('start-btn').addEventListener('click', startService);
-            document.getElementById('stop-btn').addEventListener('click', stopService);
-            document.getElementById('restart-btn').addEventListener('click', restartService);
-            document.getElementById('refresh-agents-btn').addEventListener('click', fetchHunters);
-            document.getElementById('refresh-tasks-btn').addEventListener('click', fetchTasks);
-            document.getElementById('refresh-reports-btn').addEventListener('click', fetchReports);
+            // 设置当前命名空间
+            document.getElementById('currentNamespace').textContent = getCurrentNamespace();
             
-            // Initial data fetch
-            updateStatus();
-            fetchHunters();
-            fetchTasks();
-            fetchReports();
+            // 获取命名空间列表
+            fetchNamespaces();
+            
+            // 获取讨论消息
+            fetchDiscussionMessages();
+            
+            // 设置讨论表单提交事件
+            document.getElementById('discussionForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const hunterId = document.getElementById('hunterId').value;
+                const content = document.getElementById('messageContent').value;
+                if (hunterId && content) {
+                    postDiscussionMessage(hunterId, content);
+                }
+            });
+            
+            // 设置标签页切换事件
+            document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+                tab.addEventListener('shown.bs.tab', function(e) {
+                    const target = e.target.getAttribute('aria-controls');
+                    switch(target) {
+                        case 'hunters':
+                            fetchHunters();
+                            break;
+                        case 'tasks':
+                            fetchTasks();
+                            break;
+                        case 'knowledge':
+                            fetchKnowledge();
+                            break;
+                        case 'reports':
+                            fetchReports();
+                            break;
+                    }
+                });
+            });
         });
     </script>
 </body>

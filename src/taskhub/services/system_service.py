@@ -31,27 +31,47 @@ async def get_system_guide() -> str:
 
 
 async def get_system_stats(store: SQLiteStore) -> dict:
-    """Get statistics for the entire system."""
+    """Get statistics for the entire system for the admin dashboard."""
     hunters = await store.list_hunters()
     tasks = await store.list_tasks()
 
-    total_hunters = len(hunters)
-    avg_reputation = (
-        sum(h.reputation for h in hunters) / total_hunters if total_hunters > 0 else 0
-    )
+    # Get active hunters (e.g., those assigned to a task in progress)
+    in_progress_hunter_ids = {
+        t.hunter_id for t in tasks if t.status == TaskStatus.IN_PROGRESS and t.hunter_id
+    }
+    active_hunters = len(in_progress_hunter_ids)
 
-    task_stats = {
+    stats = {
         "total_tasks": len(tasks),
+        "in_progress": len(
+            [t for t in tasks if t.status == TaskStatus.IN_PROGRESS]
+        ),
         "pending": len([t for t in tasks if t.status == TaskStatus.PENDING]),
-        "claimed": len([t for t in tasks if t.status == TaskStatus.CLAIMED]),
-        "completed": len([t for t in tasks if t.status == TaskStatus.COMPLETED]),
+        "active_hunters": active_hunters,
     }
+    return stats
 
-    return {
-        "total_hunters": total_hunters,
-        "average_reputation": round(avg_reputation, 2),
-        "tasks": task_stats,
-    }
+
+async def get_all_tasks(store: SQLiteStore) -> list[dict]:
+    """Get a list of all tasks with essential details for the admin table."""
+    tasks = await store.list_tasks()
+    
+    # Sort tasks by a reasonable default, e.g., status
+    tasks.sort(key=lambda t: t.status.value)
+
+    task_list = []
+    for task in tasks:
+        task_list.append(
+            {
+                "id": task.id,
+                "name": task.name,
+                "status": task.status.value,
+                "assignee": task.hunter_id[:8] + "..." if task.hunter_id else "Unassigned",
+            }
+        )
+    return task_list
+
+
 
 
 async def list_hunters_with_details(store: SQLiteStore) -> list[Hunter]:

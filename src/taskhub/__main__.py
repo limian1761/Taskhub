@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 @click.command()
 @click.option(
     "--host",
-    default=os.getenv("TASKHUB_HOST", "0.0.0.0"),
-    help="Host to bind to. Defaults to TASKHUB_HOST env or 0.0.0.0.",
+    default=os.getenv("TASKHUB_HOST", "localhost"),
+    help="Host to bind to. Defaults to TASKHUB_HOST env or localhost.",
 )
 @click.option(
     "--port",

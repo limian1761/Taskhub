@@ -24,6 +24,7 @@ class TaskType(str, Enum):
 
     NORMAL = "NORMAL"
     EVALUATION = "EVALUATION"
+    RESEARCH = "RESEARCH"  # 研究任务类型，用于知识发现和收集
 
 
 class TaskEvaluation(BaseModel):

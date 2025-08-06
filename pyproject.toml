@@ -14,6 +14,11 @@ dependencies = [
     "uvicorn[standard]>=0.24.0",
     "jinja2>=3.1.0",
     "python-multipart>=0.0.6",
+    "alembic>=1.12.0", # 添加Alembic依赖
+    "apscheduler>=3.10.0", # 添加APScheduler依赖
+    "openai>=1.0.0", # 添加OpenAI依赖
+    "sentence-transformers>=2.2.2",
+    "torch>=2.0.1",
 ]
 
 [project.urls]

@@ -3,6 +3,7 @@ Configuration management for Taskhub.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict
 
@@ -27,6 +28,13 @@ DEFAULT_CONFIG = {
         "directory": "data",
         "filename_pattern": "taskhub_{namespace}.db",
         "default_namespace": "default"
+    },
+    "workflow": {
+        "evaluation_task_timeout_hours": 24  # 超时时间（小时）
+    },
+    "llm": {
+        "api_key": "your_default_key_for_dev",  # 在实际使用中应通过环境变量设置
+        "model_name": "gpt-3.5-turbo"
     },
     "defaults": {
         "hunter_id": "unknown"

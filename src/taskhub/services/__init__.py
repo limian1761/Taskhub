@@ -23,8 +23,16 @@ from .hunter_service import (
 
 from .knowledge_service import (
     knowledge_add,
-    knowledge_search,
     knowledge_list,
+    knowledge_search,
+    domain_create,
+)
+
+from .discussion_service import (
+    post_message,
+    get_unread_messages,
+    mark_as_read,
+    get_all_messages,
 )
 
 from .report_service import (
@@ -56,8 +64,14 @@ __all__ = [
     
     # Knowledge services
     "knowledge_add",
-    "knowledge_search",
     "knowledge_list",
+    "knowledge_search",
+    "domain_create",
+    # Discussion service functions
+    "post_message",
+    "get_unread_messages",
+    "mark_as_read",
+    "get_all_messages",
     
     # Report services
     "report_submit",

@@ -20,6 +20,7 @@ async def task_publish(
     required_skill: str,
     publisher_id: str,
     depends_on: list[str] | None = None,
+    task_type: str = "NORMAL",  # 添加任务类型参数，默认为NORMAL
 ) -> Task:
     """Publish a new task.
     
@@ -32,6 +33,7 @@ async def task_publish(
         required_skill: The skill required to complete this task.
         publisher_id: The ID of the hunter publishing the task.
         depends_on: Optional list of task IDs that must be completed before this task.
+        task_type: The type of task (NORMAL, EVALUATION, or RESEARCH).
         
     Returns:
         The newly created Task object.
@@ -51,6 +53,7 @@ async def task_publish(
         published_by_hunter_id=publisher_id,
         priority=priority,
         depends_on=depends_on or [],
+        task_type=task_type,  # 设置任务类型
     )
     await store.save_task(task)
     return task
@@ -68,8 +71,13 @@ async def task_claim(store: SQLiteStore, task_id: str, hunter_id: str) -> Task:
         raise ValueError("A hunter cannot claim their own published task.")
 
     hunter = await store.get_hunter(hunter_id)
-    if not hunter or task.required_skill not in hunter.skills:
-        raise ValueError(f"Hunter {hunter_id} does not possess the required skill: {task.required_skill}")
+    if not hunter:
+        raise ValueError(f"Hunter {hunter_id} not found.")
+    if task.required_skill not in hunter.skills:
+        raise ValueError(
+            f"Hunter {hunter_id} does not possess the required skill: {task.required_skill}. "
+            "Please learn this skill and re-register your skills with 0 skill points to start."
+        )
 
     task.status = TaskStatus.CLAIMED
     task.hunter_id = hunter_id
@@ -168,14 +176,25 @@ async def task_list(
     return await store.list_tasks(status.value if status else None, required_skill, hunter_id)
 
 
-async def task_delete(store: SQLiteStore, task_id: str, force: bool = False) -> bool:
+async def task_delete(store: SQLiteStore, task_id: str) -> None:
+    """Delete a task from the system.
+    
+    Args:
+        store: The database store
+        task_id: The ID of the task to delete
+    """
     task = await store.get_task(task_id)
     if not task:
-        return True
-    if not force and task.status == TaskStatus.CLAIMED:
-        raise ValueError("Cannot delete a claimed task without force flag.")
+        raise ValueError(f"Task {task_id} not found")
+    
     await store.delete_task(task_id)
-    return True
+    logger.info(f"Task {task_id} deleted")
+
+
+async def delete_all_tasks(store: SQLiteStore) -> None:
+    """Delete all tasks from the database."""
+    await store.delete_all_tasks()
+    logger.info("All tasks deleted from the database")
 
 
 async def task_archive(store: SQLiteStore, task_id: str) -> Task:

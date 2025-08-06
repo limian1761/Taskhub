@@ -3,8 +3,16 @@
 """
 
 from datetime import datetime, timezone
+from enum import Enum
 
 from pydantic import BaseModel, Field
+
+
+class KnowledgeStatus(str, Enum):
+    """知识条目状态枚举"""
+    
+    DRAFT = "draft"
+    PUBLISHED = "published"
 
 
 class KnowledgeItem(BaseModel):
@@ -17,3 +25,5 @@ class KnowledgeItem(BaseModel):
     skill_tags: list[str] = Field(..., description="关联的技能标签")
     created_by: str = Field(..., description="创建者ID")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    embedding: list[float] | None = Field(None, description="知识点内容的向量表示")
+    status: KnowledgeStatus = Field(default=KnowledgeStatus.DRAFT, description="知识条目的状态（草稿或已发布）")

@@ -114,9 +114,57 @@ async def report_evaluate(
             hunter.skills[skill] = hunter.skills.get(skill, 0) + skill_gain
     
     await store.save_hunter(hunter)
+    
+    # 检查特性开关和评价分数
+    from taskhub.utils.config import config
+    if config.get("features.auto_generate_knowledge", True) and score >= 90:
+        from . import llm_service, knowledge_service
+        from taskhub.models.knowledge import KnowledgeStatus
+        
+        if task:
+            # 1. 调用LLM服务生成知识
+            title, content = await llm_service.summarize_task_for_knowledge(
+                task.details, report.result
+            )
+
+            # 2. 创建草稿状态的知识条目
+            await knowledge_service.knowledge_add(
+                store=store,
+                knowledge_id=f"knowledge_{report.id}",
+                title=title,
+                content=content,
+                source=f"Auto-generated from task {task.id}",
+                skill_tags=[task.required_skill],
+                created_by="system_automata",
+                status=KnowledgeStatus.DRAFT  # 明确指定为草稿
+            )
+            logger.info(f"Knowledge draft created automatically from task {task.id}")
 
     return report
 
 
-async def report_list(store: SQLiteStore) -> list[Report]:
-    return await store.list_reports()
+async def report_list(store: SQLiteStore, task_id: str | None = None, hunter_id: str | None = None, status: str | None = None) -> list[Report]:
+    """List reports with optional filtering.
+    
+    Args:
+        store: The database store
+        task_id: Optional task ID to filter by
+        hunter_id: Optional hunter ID to filter by
+        status: Optional status to filter by
+        
+    Returns:
+        List of Report objects matching the criteria
+    """
+    return await store.list_reports(task_id, hunter_id, status)
+
+
+async def delete_all_reports(store: SQLiteStore) -> None:
+    """Delete all reports from the database."""
+    await store.delete_all_reports()
+    logger.info("All reports deleted from the database")
+
+
+async def delete_report(store: SQLiteStore, report_id: str) -> None:
+    """Delete a report from the database."""
+    await store.delete_report(report_id)
+    logger.info(f"Report {report_id} deleted from the database")

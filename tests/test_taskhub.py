@@ -8,9 +8,16 @@ from taskhub.models.task import Task
 from taskhub.storage.sqlite_store import SQLiteStore
 from taskhub.services import (
     hunter_register,
-    domain_create,
     task_delete,
     task_publish,
+    domain_create,
+)
+# 从正确的模块导入domain_create
+from taskhub.services import (
+    hunter_register,
+    task_delete,
+    task_publish,
+    domain_create,
 )
 
 
@@ -35,6 +42,47 @@ async def test_hunter_register_updated(db: SQLiteStore):
     assert isinstance(hunter, Hunter)
     assert hunter.id == hunter_id
     assert hunter.skills == skills
+
+
+@pytest.mark.asyncio
+async def test_hunter_register_preserves_existing_skills(db: SQLiteStore):
+    """测试猎人注册时不会覆盖已有的技能，并且新技能会被正确添加"""
+    hunter_id = "test-hunter-002"
+    
+    # 首先注册一个带有初始技能的猎人
+    initial_skills = {"python": 80, "testing": 60}
+    hunter = await hunter_register(
+        db, hunter_id=hunter_id, skills=initial_skills
+    )
+    
+    # 验证初始技能
+    assert isinstance(hunter, Hunter)
+    assert hunter.id == hunter_id
+    assert hunter.skills == initial_skills
+    
+    # 再次注册同一个猎人，但这次带有不同的技能
+    new_skills = {"javascript": 70, "html": 85}
+    updated_hunter = await hunter_register(
+        db, hunter_id=hunter_id, skills=new_skills
+    )
+    
+    # 验证猎人还是同一个猎人
+    assert isinstance(updated_hunter, Hunter)
+    assert updated_hunter.id == hunter_id
+    
+    # 验证原有的技能没有被覆盖，并且新技能被添加了
+    assert "python" in updated_hunter.skills
+    assert "testing" in updated_hunter.skills
+    assert "javascript" in updated_hunter.skills
+    assert "html" in updated_hunter.skills
+    
+    # 验证原有技能的等级没有改变
+    assert updated_hunter.skills["python"] == 80
+    assert updated_hunter.skills["testing"] == 60
+    
+    # 验证新技能的等级正确
+    assert updated_hunter.skills["javascript"] == 70
+    assert updated_hunter.skills["html"] == 85
 
 
 @pytest.mark.asyncio
