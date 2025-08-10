@@ -12,23 +12,22 @@ from taskhub.storage.sqlite_store import SQLiteStore
 logger = logging.getLogger(__name__)
 
 
-async def get_system_guide() -> str:
-    """Retrieve the system guide for hunters.
-    
-    Returns:
-        A string containing the complete system guide.
-    """
-    guide_path = Path(__file__).parent.parent / "Taskhub_Guide.md"
-    try:
-        with open(guide_path, "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        logger.error(f"Could not find the Taskhub Guide at {guide_path}")
-        return "Error: System guide not found. Please contact an administrator."
-    except Exception as e:
-        logger.error(f"An error occurred while reading the system guide: {e}")
-        return "Error: Could not retrieve the system guide due to an internal error."
+import os
+from pathlib import Path
 
+async def get_system_guide() -> str:
+    """
+    返回实际的guide文档
+    """
+    try:
+        # 假设README.md在项目根目录下
+        readme_path = Path(__file__).parent.parent / "taskhub_guide.md"
+        if readme_path.exists():
+            with open(readme_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        return "未找到taskhub_guide.md文件，请检查文件是否存在。"
+    except Exception as e:
+        return f"读取taskhub_guide.md文件时出错: {str(e)}"
 
 async def get_system_stats(store: SQLiteStore) -> dict:
     """Get statistics for the entire system for the admin dashboard."""
@@ -114,6 +113,63 @@ async def get_task_with_details(store: SQLiteStore, task_id: str) -> dict | None
         )
 
     return task_dict
+
+
+async def check_and_escalate_stale_tasks(store: SQLiteStore) -> int:
+    """
+    检查并升级过期的任务。
+    
+    检查标准：
+    - 处于IN_PROGRESS状态超过24小时未更新的任务
+    - 标记为CLAIMED但超过12小时未开始处理的任务
+    
+    升级操作：
+    - 将过期任务状态改为FAILED
+    - 记录失败原因
+    - 返回处理的任务数量
+    
+    Args:
+        store: SQLiteStore实例
+        
+    Returns:
+        int: 被升级的任务数量
+    """
+    from datetime import datetime, timedelta, timezone
+    from taskhub.models.task import TaskStatus
+    
+    try:
+        tasks = await store.list_tasks()
+        stale_count = 0
+        
+        now = datetime.now(timezone.utc)
+        
+        for task in tasks:
+            if task.status == TaskStatus.IN_PROGRESS:
+                # 检查是否超过24小时未更新
+                if task.updated_at and (now - task.updated_at) > timedelta(hours=24):
+                    logger.info(f"任务 {task.id} 超时24小时未更新，标记为失败")
+                    task.status = TaskStatus.FAILED
+                    task.updated_at = now
+                    await store.save_task(task)
+                    stale_count += 1
+                    
+            elif task.status == TaskStatus.CLAIMED:
+                # 检查是否超过12小时未开始处理
+                if task.updated_at and (now - task.updated_at) > timedelta(hours=12):
+                    logger.info(f"任务 {task.id} 认领后12小时未开始，标记为失败")
+                    task.status = TaskStatus.FAILED
+                    task.updated_at = now
+                    await store.save_task(task)
+                    stale_count += 1
+        
+        if stale_count > 0:
+            logger.info(f"成功升级 {stale_count} 个过期任务")
+        
+        return stale_count
+        
+    except Exception as e:
+        logger.error(f"检查过期任务时发生错误: {e}")
+        raise
 
 
 async def get_task_interaction_graph(store: SQLiteStore) -> dict:

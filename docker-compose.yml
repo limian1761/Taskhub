@@ -1,38 +1,78 @@
 version: '3.8'
 
+# Taskhub & Outline Docker Compose Setup
+#
+# This file orchestrates the deployment of two main applications:
+# 1. Taskhub: The core task management and agent coordination server.
+# 2. Outline: An external, professional knowledge base.
+#
 services:
-  taskhub-sse:
+  # --- Taskhub API Service ---
+  # This service runs the FastAPI web server for the management UI and REST API.
+  taskhub-api:
     build: .
     ports:
-      - "8000:8000"
+      - "8001:8001"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./configs:/app/configs:ro
+      - ./src:/app/src
     environment:
       - PYTHONPATH=/app
+      - PYTHONWARNINGS=ignore::DeprecationWarning
+    command: python -m taskhub cli api --host 0.0.0.0 --port 8001
     restart: unless-stopped
-    command: ["uv", "run", "python", "-m", "taskhub", "--transport", "streamable-http", "--host", "localhost", "--port", "8000"]
+    depends_on:
+      - outline-postgres
 
-  taskhub-stdio:
-    build: .
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./configs:/app/configs:ro
-    environment:
-      - PYTHONPATH=/app
-    stdin_open: true
-    tty: true
-    command: ["uv", "run", "python", "-m", "taskhub", "--transport", "stdio"]
-
-  taskhub-dev:
-    build: .
+  # --- Taskhub MCP Service ---
+  # This service runs the core FastMCP agent server.
+  taskhub-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: taskhub_mcp_server
     ports:
-      - "8000:8000"
+      - "8000:8000"  # Expose the MCP server port
     volumes:
       - .:/app
     environment:
-      - PYTHONPATH=/app
+      - PYTHONPATH=/app/src
+      - PYTHONWARNINGS=ignore::DeprecationWarning
+      - OUTLINE_URL=${OUTLINE_URL}
+      - OUTLINE_API_TOKEN=${OUTLINE_API_TOKEN}
+    command: python -m taskhub cli mcp --host 0.0.0.0 --port 8000 --transport streamable-http
+
+  # --- Outline Knowledge Base Services ---
+  # These services are required to run the Outline wiki.
+  outline:
+    image: docker.getoutline.com/outlinewiki/outline:latest
+    ports:
+      - "9000:3000" # Expose Outline on host port 9000
+    env_file: ./outline.env
+    volumes:
+      - outline-storage-data:/var/lib/outline/data
+    depends_on:
+      - outline-postgres
+      - outline-redis
     restart: unless-stopped
-    command: ["uv", "run", "python", "-m", "taskhub", "--transport", "streamable-http", "--host", "localhost", "--port", "8000"]
+
+  outline-redis:
+    image: redis:7-alpine
+    volumes:
+      - outline-redis-data:/data
+    restart: unless-stopped
+
+  outline-postgres:
+    image: postgres:15-alpine
+    volumes:
+      - outline-database-data:/var/lib/postgresql/data
+    env_file: ./outline.env
+    restart: unless-stopped
+
+volumes:
+  # Named volumes for Outline data persistence.
+  outline-storage-data:
+  outline-redis-data:
+  outline-database-data:

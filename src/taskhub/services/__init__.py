@@ -25,7 +25,11 @@ from .knowledge_service import (
     knowledge_add,
     knowledge_list,
     knowledge_search,
-    domain_create,
+)
+
+from .domain_service import (
+    create_domain,
+    list_domains,
 )
 
 from .discussion_service import (
@@ -66,7 +70,11 @@ __all__ = [
     "knowledge_add",
     "knowledge_list",
     "knowledge_search",
-    "domain_create",
+
+    # Domain services
+    "create_domain",
+    "list_domains",
+    
     # Discussion service functions
     "post_message",
     "get_unread_messages",

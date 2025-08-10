@@ -1,106 +1,137 @@
 """
 Knowledge-related service functions for the Taskhub system.
+All knowledge is now managed directly in Outline.
 """
 
 import logging
-import sys
-from pathlib import Path
+from typing import List, Dict, Any
 
-# Add src to path for absolute imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from taskhub.models.knowledge import KnowledgeItem
-from taskhub.models.domain import Domain
-from taskhub.storage.sqlite_store import SQLiteStore
-from taskhub.utils.id_generator import generate_id
+from taskhub.sdk.outline_client import (
+    create_document,
+    search_documents,
+    get_document,
+    list_documents,
+    delete_document,
+    answer_question,
+    update_document,
+)
+from taskhub.utils.config import config
 
 logger = logging.getLogger(__name__)
 
 
-async def knowledge_add(store: SQLiteStore, knowledge_id: str, content: str, title: str = None, source: str = "manual_add", skill_tags: list[str] = None, created_by: str = "system", status: str = None) -> KnowledgeItem:
-    """Add a new knowledge item to the system.
-    
-    Args:
-        store: The database store
-        knowledge_id: The ID for the new knowledge item
-        content: The content of the knowledge item
-        title: The title of the knowledge item
-        source: The source of the knowledge
-        skill_tags: List of skill tags for the knowledge item
-        created_by: The creator of the knowledge item
-        status: The status of the knowledge item (draft or published)
-        
-    Returns:
-        The created KnowledgeItem object
+async def knowledge_add(collection_id: str, title: str, content: str, parent_document_id: str = None) -> Dict[str, Any]:
     """
-    # Create knowledge item
-    knowledge_item = KnowledgeItem(
-        id=knowledge_id,
-        title=title or f"Knowledge Item {knowledge_id}",
+    Add a new knowledge item by creating a document in Outline.
+
+    Args:
+        collection_id: The ID of the collection to add the document to.
+        title: The title of the knowledge item.
+        content: The content of the knowledge item.
+        parent_document_id: Optional ID of a parent document for nesting.
+
+    Returns:
+        The created document data from Outline.
+    """
+    if not collection_id:
+        raise ValueError("Outline Collection ID must be provided.")
+
+    logger.info(f"Creating document in Outline collection {collection_id} with title: {title}")
+    outline_doc = await create_document(
+        title=title,
         content=content,
-        source=source,
-        skill_tags=skill_tags or [],
-        created_by=created_by,
-        status=status if status else "draft"
+        collection_id=collection_id,
+        parent_document_id=parent_document_id,
     )
-    
-    # Save to store
-    await store.save_knowledge_item(knowledge_item)
-    logger.info(f"Knowledge item {knowledge_id} added")
-    return knowledge_item
+    logger.info(f"Successfully created document {outline_doc.get('id')} in Outline.")
+    return outline_doc
 
 
-async def knowledge_search(store: SQLiteStore, query: str, limit: int = 20) -> list[KnowledgeItem]:
-    return await store.search_knowledge(query, limit)
-
-
-async def knowledge_list(store: SQLiteStore) -> list[KnowledgeItem]:
-    """List all knowledge items in the system.
-    
-    Args:
-        store: The database store
-        
-    Returns:
-        List of all KnowledgeItem objects
+async def knowledge_search(query: str, limit: int = 20) -> List[Dict[str, Any]]:
     """
-    return await store.list_knowledge_items()
+    Search for documents directly in Outline.
 
-
-async def delete_all_knowledge(store: SQLiteStore) -> None:
-    """Delete all knowledge items from the database."""
-    await store.delete_all_knowledge_items()
-    logger.info("All knowledge items deleted from the database")
-
-
-async def delete_knowledge(store: SQLiteStore, knowledge_id: str) -> None:
-    """Delete a knowledge item from the database."""
-    await store.delete_knowledge_item(knowledge_id)
-    logger.info(f"Knowledge item {knowledge_id} deleted from the database")
-
-
-async def domain_create(store: SQLiteStore, name: str, description: str) -> Domain:
-    """Create a new knowledge domain.
-    
-    In Taskhub, skills and domains are the same concept but with different names used in 
-    different contexts:
-    - "Skill" is used when referring to hunter abilities or task requirements
-    - "Domain" is used when referring to knowledge areas or categories
-    
-    Creating a new domain effectively creates a new skill that hunters can learn and tasks
-    can require. Before creating a new domain, make sure it doesn't already exist.
-    
     Args:
-        store: The database store to save the domain to
-        name: The name of the new domain/skill (must be unique)
-        description: A detailed description of what this domain/skill covers
-        
+        query: The search query.
+        limit: Maximum number of results to return.
+
     Returns:
-        The newly created Domain object
+        List of search results from Outline.
     """
-    domain = Domain(
-        id=generate_id("domain"),
-        name=name,
-        description=description,
-    )
-    await store.save_domain(domain)
-    return domain
+    logger.info(f"Searching Outline for: {query}")
+    search_results = await search_documents(query)
+    return search_results[:limit]
+
+
+async def knowledge_list(collection_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    List all knowledge items from a specific Outline collection.
+
+    Args:
+        collection_id: The ID of the collection to list documents from.
+        limit: The maximum number of documents to return.
+
+    Returns:
+        List of document data from Outline.
+    """
+    logger.info(f"Listing documents from Outline collection {collection_id}")
+    return await list_documents(collection_id=collection_id, limit=limit)
+
+
+async def knowledge_get(document_id: str) -> Dict[str, Any]:
+    """
+    Get a specific knowledge item by its Outline document ID.
+
+    Args:
+        document_id: The document ID from Outline.
+
+    Returns:
+        The requested document data from Outline.
+    """
+    logger.info(f"Fetching document {document_id} from Outline.")
+    return await get_document(document_id)
+
+
+async def knowledge_delete(document_id: str) -> bool:
+    """
+    Delete a knowledge item by its Outline document ID.
+
+    Args:
+        document_id: The document ID from Outline to delete.
+
+    Returns:
+        True if deletion was successful, False otherwise.
+    """
+    logger.info(f"Deleting document {document_id} from Outline.")
+    return await delete_document(document_id)
+
+
+async def knowledge_answer_question(document_id: str, query: str) -> Dict[str, Any]:
+    """
+    Ask a question about a specific document in Outline.
+
+    Args:
+        document_id: The document ID from Outline.
+        query: The question to ask about the document.
+
+    Returns:
+        The answer data from Outline.
+    """
+    logger.info(f"Asking question about document {document_id}: '{query}'")
+    return await answer_question(document_id=document_id, query=query)
+
+
+async def knowledge_update(document_id: str, title: str = None, content: str = None) -> Dict[str, Any]:
+    """
+    Updates an existing knowledge document in Outline.
+
+    Args:
+        document_id: The ID of the document to update.
+        title: The new title for the document (optional).
+        content: The new content for the document in Markdown format (optional).
+
+    Returns:
+        A dictionary representation of the updated Outline document.
+    """
+    logger.info(f"Updating document {document_id} in Outline.")
+    return await update_document(document_id=document_id, title=title, content=content)

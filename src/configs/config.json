@@ -1,7 +1,7 @@
 {
   "server": {
     "host": "localhost",
-    "port": 8000,
+    "port": 3000,
     "transport": "sse"
   },
   "storage": {
@@ -13,5 +13,11 @@
     "default_lease_duration": 30,
     "max_lease_duration": 120,
     "cleanup_interval": 300
+  },
+  "outline": {
+    "url": "http://localhost:3000",
+    "api_key": "ol_api_A05zlsTjsQ0Fb702Cd5WwfPN1j3FKGvg2YKhsc"
   }
+
+
 }

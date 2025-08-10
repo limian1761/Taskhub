@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timezone
 
 from taskhub.models.hunter import Hunter
-from taskhub.models.knowledge import KnowledgeItem
+from taskhub.services import knowledge_service
 from taskhub.storage.sqlite_store import SQLiteStore
 from taskhub.utils.id_generator import generate_id
 
@@ -70,11 +70,14 @@ async def hunter_study(store: SQLiteStore, hunter_id: str, knowledge_id: str) ->
     if not hunter:
         raise ValueError(f"Hunter not found: {hunter_id}")
 
-    knowledge = await store.get_knowledge_item(knowledge_id)
+    knowledge = await knowledge_service.knowledge_get(knowledge_id)
     if not knowledge:
         raise ValueError(f"Knowledge item not found: {knowledge_id}")
 
-    for skill in knowledge.skill_tags:
+    # Assuming the knowledge dictionary has a 'tags' key with a list of skill strings
+    skill_tags = knowledge.get("tags", [])
+
+    for skill in skill_tags:
         if skill in hunter.skills:
             hunter.skills[skill] = min(100, hunter.skills[skill] + 5)
         else:

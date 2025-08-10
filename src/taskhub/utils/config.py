@@ -36,6 +36,11 @@ DEFAULT_CONFIG = {
         "api_key": "your_default_key_for_dev",  # 在实际使用中应通过环境变量设置
         "model_name": "gpt-3.5-turbo"
     },
+    "outline": {
+        "url": "http://localhost:3000",  # Outline实例URL
+        "api_key": "your_outline_api_key",  # Outline API密钥
+        "collection_id": "your_collection_id"  # 默认集合ID
+    },
     "defaults": {
         "hunter_id": "unknown"
     },

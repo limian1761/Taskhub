@@ -23,6 +23,7 @@ COPY configs/ ./configs/
 RUN mkdir -p /app/data /app/logs
 
 # 暴露端口
+EXPOSE 8001
 EXPOSE 8000
 
 # 默认启动命令

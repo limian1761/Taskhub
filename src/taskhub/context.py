@@ -1,108 +1,161 @@
 """
-Application context and database store management for Taskhub.
+Context management for the Taskhub system.
 """
 
+import asyncio
 import logging
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
-from typing import Any, cast
+from dataclasses import dataclass
+from typing import Optional, Dict
+import contextvars
 
-from mcp.server.fastmcp import FastMCP
-from mcp.shared.context import RequestContext
+from mcp.server.fastmcp import Context
+
 from taskhub.storage.sqlite_store import SQLiteStore
+from taskhub.services import system_service
+from taskhub.utils.scheduler_utils import run_stale_task_check
 from taskhub.utils.config import config
 
 logger = logging.getLogger(__name__)
 
+# Context variables for request-scoped data
+namespace_ctx: contextvars.ContextVar[str] = contextvars.ContextVar('namespace', default='default')
+hunter_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar('hunter_id', default='system')
 
 @dataclass
 class TaskhubAppContext:
-    """Application context for Taskhub, managing database stores for different namespaces."""
-    stores: dict[str, SQLiteStore] = field(default_factory=dict)
+    """Application context for the Taskhub system."""
+    namespace_store: SQLiteStore
+    current_namespace: str
+    current_hunter_id: str
     
-    def get_or_create_store(self, namespace: str) -> SQLiteStore:
-        """Get or create a database store for the given namespace.
-        
-        Args:
-            namespace: The namespace to get or create a store for.
-            
-        Returns:
-            The SQLiteStore instance for the namespace.
-        """
-        if namespace not in self.stores:
-            db_path = config.get_database_path(namespace)
-            logger.info(f"Creating new database store for namespace '{namespace}' at {db_path}")
-            self.stores[namespace] = SQLiteStore(db_path)
-        else:
-            logger.debug(f"Reusing existing database store for namespace '{namespace}'")
-        return self.stores[namespace]
+    async def close(self):
+        """Close all database connections."""
+        if self.namespace_store:
+            await self.namespace_store.close()
+
+def get_store() -> SQLiteStore:
+    """Get the store for the current namespace."""
+    if _app_context is None:
+        raise RuntimeError("App context not initialized")
     
-    async def close_stores(self):
-        """Close all database stores."""
-        for namespace, store in self.stores.items():
-            logger.info(f"Closing database store for namespace '{namespace}'")
-            await store.close()
+    # For now, we use the global app context store
+    # The namespace is handled by the database path configuration
+    return _app_context.namespace_store
 
+# Cache for namespace-specific stores
+_namespace_stores: dict[str, SQLiteStore] = {}
 
-@asynccontextmanager
-async def app_lifespan(server: FastMCP) -> AsyncIterator[TaskhubAppContext]:
-    """Application lifespan manager, initializing and cleaning up resources.
+async def get_namespace_store(namespace: str = None) -> SQLiteStore:
+    """Get or create a store for the specified namespace.
     
     Args:
-        server: The FastMCP server instance.
-        
-    Yields:
-        The TaskhubAppContext instance.
-    """
-    logger.info("Initializing Taskhub application")
-    ctx = TaskhubAppContext()
-    server.state = ctx  # Attach the context to the app's state
-    try:
-        yield ctx
-    finally:
-        logger.info("Shutting down Taskhub application")
-        for namespace, store in ctx.stores.items():
-            logger.info(f"Closing database store for namespace '{namespace}'")
-            await store.close()
-
-
-def get_store(ctx: RequestContext[Any, TaskhubAppContext, Any]) -> SQLiteStore:
-    """Get the database store for the current request's namespace.
-    
-    Args:
-        ctx: The request context containing session information.
+        namespace: The namespace to use. If None, uses current request namespace.
         
     Returns:
-        The SQLiteStore instance for the current namespace.
+        SQLiteStore instance for the namespace.
     """
-    # 1. 从配置中获取默认值作为基础
-    namespace = config.get_default_namespace()
-    hunter_id = config.get_default_hunter_id()
+    if namespace is None:
+        namespace = "default"
     
-    # 2. 如果存在请求，则尝试从请求头中覆盖默认值
-    if ctx.request:
-        headers = {k.lower(): v for k, v in ctx.request.headers.items()}
+    if namespace in _namespace_stores:
+        return _namespace_stores[namespace]
+    
+    # Create new store for this namespace
+    db_path = config.get_database_path(namespace)
+    store = SQLiteStore(db_path)
+    await store.connect()
+    
+    _namespace_stores[namespace] = store
+    logger.info(f"Created new store for namespace: {namespace}")
+    return store
+
+async def close_namespace_store(namespace: str):
+    """Close and remove the store for a specific namespace."""
+    if namespace in _namespace_stores:
+        store = _namespace_stores.pop(namespace)
+        await store.close()
+        logger.info(f"Closed store for namespace: {namespace}")
+
+async def close_all_namespace_stores():
+    """Close all namespace stores."""
+    for namespace, store in list(_namespace_stores.items()):
+        await store.close()
+        logger.info(f"Closed store for namespace: {namespace}")
+    _namespace_stores.clear()
+
+@dataclass
+class AppContext:
+    """Complete application context including namespace and hunter ID."""
+    namespace: str
+    hunter_id: str
+    store: SQLiteStore
+    
+    async def close(self):
+        """Close the store connection."""
+        if self.store:
+            await self.store.close()
+
+async def get_app_context(ctx: Context) -> AppContext:
+    """Get the current application context with namespace and hunter ID."""
+
+    print(ctx.request_context.request.headers)
+    hunter_id = ctx.request_context.request.headers["hunter_id"]
+    if not hunter_id:
+        raise ValueError("hunter_id header is required")
+    namespace = ctx.request_context.request.headers["taskhub_namespace"]
+    if not namespace:
+        raise ValueError("namespace header is required")
+    store = await get_namespace_store(namespace)
+    
+    return AppContext(
+        namespace=namespace,
+        hunter_id=hunter_id,
+        store=store
+    )
+
+@asynccontextmanager
+async def taskhub_lifespan(namespace: str = None, hunter_id: str = None):
+    """Application lifespan context manager with namespace and hunter ID."""
+    global _app_context, _current_namespace, _current_hunter_id
+    
+    # Use provided values or current ones
+    if namespace:
+        _current_namespace = namespace
+    if hunter_id:
+        _current_hunter_id = hunter_id
+    
+    try:
+        # Initialize stores with namespace
+        db_path = config.get_database_path(_current_namespace)
         
-        # 使用请求头中的值（如果存在），否则回退到默认值。
-        # .get() 对缺失的键返回 None，因此 "or" 运算符可以简洁地实现这一点。
-        namespace = headers.get("taskhub_namespace") or namespace
-        hunter_id = headers.get("hunter_id") or hunter_id
-    
-    # 3. 将最终确定的值存储在会话中以供后续使用
-    ctx.session.namespace = namespace
-    ctx.session.hunter_id = hunter_id
-    
-    # 4. 记录请求上下文用于调试和监控
-    if ctx.request:
-        request_info = {
-            "method": ctx.request.method,
-            "url": str(ctx.request.url),
-            "namespace": namespace,
-            "hunter_id": hunter_id,
-        }
-        logging.getLogger("taskhub.request").info(f"Request context: {request_info}")
-    
-    # 5. 获取（或创建）指定命名空间的存储实例
-    app_ctx = ctx.lifespan_context
-    return app_ctx.get_or_create_store(namespace)
+        namespace_store = SQLiteStore(db_path)
+        await namespace_store.connect()
+        
+        _app_context = TaskhubAppContext(
+            namespace_store=namespace_store,
+            current_namespace=_current_namespace,
+            current_hunter_id=_current_hunter_id
+        )
+        
+        logger.info(f"Taskhub app context initialized - namespace: {_current_namespace}, hunter_id: {_current_hunter_id}")
+        
+        # Start stale task check scheduler
+        stale_task_task = asyncio.create_task(run_stale_task_check())
+        
+        yield _app_context
+        
+    finally:
+        # Cancel stale task check
+        stale_task_task.cancel()
+        try:
+            await stale_task_task
+        except asyncio.CancelledError:
+            pass
+        
+        # Close context
+        if _app_context:
+            await _app_context.close()
+            _app_context = None
+        
+        logger.info("Taskhub app context closed")

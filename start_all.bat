@@ -2,25 +2,23 @@
 chcp 65001 > nul
 setlocal
 
-:: Add project root directory to Python path for proper module resolution
-set PYTHONPATH=%~dp0;%PYTHONPATH%
+:: This script starts all Taskhub services.
+:: It launches separate processes for the API service and the MCP service.
 
-echo Starting Taskhub services with specified ports...
-echo.
+:: Suppress websockets deprecation warnings globally
+set PYTHONWARNINGS=ignore::DeprecationWarning
 
-REM Set title for this launcher window
-title Taskhub Service Launcher
+set PYTHONPATH=%~dp0src;%PYTHONPATH%
+title Taskhub Services
 
-REM Start main Taskhub MCP service
-echo Starting Main Taskhub Server on port 3000...
-start "Taskhub Main Server" cmd /k "cd /d %~dp0 && python -m taskhub --transport sse --host localhost --port 3000"
+:: Start API service
+start "Taskhub API" python -m taskhub api --host localhost --port 8001
 
-REM Start Admin service
-echo Starting API Server on port 8000...
-start "Taskhub API Server" cmd /c "uvicorn src.taskhub.api:app --host localhost --port 8000 --reload --reload-dir src"
+:: Start MCP service
+start "Taskhub MCP" python -m taskhub mcp --host localhost --port 8000
 
 echo.
-echo All services have been launched in separate windows.
-echo You can close this window.
-
+echo Taskhub services have been started in separate windows.
+echo API service: http://localhost:8001
+echo MCP service: http://localhost:8000
 endlocal

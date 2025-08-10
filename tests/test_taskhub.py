@@ -10,15 +10,9 @@ from taskhub.services import (
     hunter_register,
     task_delete,
     task_publish,
-    domain_create,
+    create_domain,
 )
-# 从正确的模块导入domain_create
-from taskhub.services import (
-    hunter_register,
-    task_delete,
-    task_publish,
-    domain_create,
-)
+
 
 
 @pytest_asyncio.fixture
@@ -87,7 +81,7 @@ async def test_hunter_register_preserves_existing_skills(db: SQLiteStore):
 
 @pytest.mark.asyncio
 async def test_task_publish_updated(db: SQLiteStore):
-    domain = await domain_create(db, "Test Domain", "For task publishing test")
+        domain = await create_domain(db, "Test Domain", "For task publishing test")
 
     task = await task_publish(
         db,
@@ -109,7 +103,7 @@ async def test_task_publish_updated(db: SQLiteStore):
 
 @pytest.mark.asyncio
 async def test_task_delete(db: SQLiteStore):
-    domain = await domain_create(db, "Test Domain", "For task deleting test")
+        domain = await create_domain(db, "Test Domain", "For task deleting test")
 
     task = await task_publish(
         db,

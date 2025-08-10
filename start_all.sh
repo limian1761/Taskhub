@@ -1,27 +1,25 @@
 #!/bin/bash
 
-# Set Python path to include project root directory
-export PYTHONPATH="$(pwd):$PYTHONPATH"
+# This script starts all Taskhub services.
+# It launches separate processes for the API service and the MCP service.
 
-echo "Starting Taskhub services..."
-echo ""
+# Suppress websockets deprecation warnings globally
+export PYTHONWARNINGS="ignore::DeprecationWarning"
+export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
 
-# Start main Taskhub MCP service
-echo "Starting Main Taskhub Server on port 3000..."
-python -m taskhub --host localhost --port 3000 --reload --reload-dir src &
-TASKHUB_PID=$!
-
-# Start Admin service
-echo "Starting API Server on port 8000..."
-uvicorn src.taskhub.api:app --host localhost --port 8000 --reload --reload-dir src &
+# Start API service
+echo "Starting Taskhub API Server on http://localhost:8001..."
+python -m taskhub api --host localhost --port 8001 &
 API_PID=$!
 
-echo ""
-echo "All services started in the background:"
-echo "  - Main Taskhub Server PID: $TASKHUB_PID"
-echo "  - API Server PID: $API_PID"
-echo ""
-echo "Use 'kill $TASKHUB_PID $API_PID' or 'pkill -f uvicorn' to stop all services."
+echo "Starting Taskhub MCP Server on http://localhost:8000..."
+python -m taskhub mcp --host localhost --port 8000 &
+MCP_PID=$!
 
-# Wait for all background processes so the script can be interrupted with Ctrl+C
-wait $TASKHUB_PID $API_PID
+echo "Taskhub services started."
+echo "API service: http://localhost:8001"
+echo "MCP service: http://localhost:8000"
+
+echo "Press Ctrl+C to stop all services."
+trap "kill $API_PID $MCP_PID" INT TERM
+wait $API_PID $MCP_PID

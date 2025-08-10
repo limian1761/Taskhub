@@ -1,216 +1,182 @@
 """
-Knowledge-related tools for the Taskhub system.
+Knowledge and Domain related tools for the Taskhub system,
+interacting directly with Outline.
 """
 
 import logging
-from typing import Any, cast
+from typing import Any, List, Dict, Optional
 
-from mcp.server.fastmcp import Context
-from mcp.shared.context import RequestContext
-from taskhub.services import (
-    knowledge_add,
-    knowledge_list,
-    knowledge_search,
-    domain_create,
-    get_system_guide
+# Import the FastMCP instance from mcp_server
+from .. import mcp
+
+from taskhub.services import knowledge_service, domain_service
+from taskhub.context import get_app_context
+from taskhub.utils.error_handler import (
+    handle_tool_errors,
+    create_success_response,
+    ValidationError,
+    NotFoundError,
+    validate_required_fields,
+    validate_string_length
 )
-from taskhub.context import get_store
-
 
 logger = logging.getLogger(__name__)
 
+# --- Domain (Collection) Tools ---
 
-def register_knowledge_tools(app):
-    """Register all knowledge-related tools with the FastMCP app."""
-    
-    @app.tool("taskhub.knowledge.add")
-    async def add_knowledge(
-        ctx: Context, title: str, content: str, source: str, skill_tags: list[str], created_by: str
-    ) -> dict[str, Any]:
-        """Add a new knowledge item to the system.
-        
-        This tool allows administrators or content creators to add new knowledge items
-        to the system. These knowledge items can be studied by hunters to improve their skills.
-        
-        Note: Knowledge items are associated with skill domains. In Taskhub, skills and domains 
-        are the same concept but with different names used in different contexts:
-        - "Skill" is used when referring to hunter abilities or task requirements
-        - "Domain" is used when referring to knowledge areas or categories
-        
-        You can only tag knowledge with skills that already exist in the system. If you need a 
-        new skill domain, you must first create it using the domain creation tool.
-        
-        Args:
-            ctx: The MCP context containing session information.
-            title: The title or name of the knowledge item.
-            content: The main content of the knowledge item.
-            source: The source or origin of this knowledge.
-            skill_tags: A list of skill names that this knowledge item relates to. Must be
-                       from existing skill domains in the system.
-            created_by: The identifier of the user who created this knowledge item.
-            
-        Returns:
-            A dictionary representation of the newly created knowledge item.
-        """
-        store = get_store(cast(RequestContext, ctx.request_context))
-        knowledge_item = await knowledge_add(store, title, content, source, skill_tags, created_by)
-        return knowledge_item.model_dump()
+@mcp.tool()
+async def create_domain(name: str, description: str = None) -> Dict[str, Any]:
+    """
+    Creates a new skill domain by creating a Collection in Outline.
 
-    @app.tool("taskhub.knowledge.list")
-    async def list_knowledge(ctx: Context, skill_tag: str | None = None) -> list[dict[str, Any]]:
-        """List knowledge items with optional skill tag filtering.
-        
-        This tool retrieves a list of knowledge items available in the system. It can be
-        filtered to show only items related to a specific skill, which is useful for
-        hunters looking to improve in a particular area.
-        
-        Note: Knowledge items are filtered by skill domains. In Taskhub, skills and domains 
-        are the same concept but with different names used in different contexts:
-        - "Skill" is used when referring to hunter abilities or task requirements
-        - "Domain" is used when referring to knowledge areas or categories
-        
-        You can only filter by skills that already exist in the system.
-        
-        Args:
-            ctx: The MCP context containing session information.
-            skill_tag: Optional filter to only show knowledge items related to this skill.
-                      Must be from existing skill domains in the system.
-            
-        Returns:
-            A list of dictionary representations of knowledge items.
-        """
-        store = get_store(cast(RequestContext, ctx.request_context))
-        items = await knowledge_list(store, skill_tag)
-        return [item.model_dump() for item in items]
+    Args:
+        name: The name of the new domain/collection.
+        description: An optional description for the domain/collection.
 
-    @app.tool("taskhub.knowledge.search")
-    async def search_knowledge(ctx: Context, query: str, limit: int = 20) -> list[dict[str, Any]]:
-        """Search for knowledge items by keyword.
-        
-        This tool allows hunters to search through knowledge items by keyword, making it
-        easier to find relevant learning materials. The search looks through titles, content,
-        and tags of knowledge items.
-        
-        Args:
-            ctx: The MCP context containing session information.
-            query: The search query string to match against knowledge items.
-            limit: Maximum number of results to return (default: 20).
-            
-        Returns:
-            A list of dictionary representations of knowledge items matching the search query.
-        """
-        store = get_store(cast(RequestContext, ctx.request_context))
-        items = await knowledge_search(store, query, limit)
-        return [item.model_dump() for item in items]
+    Returns:
+        A dictionary representation of the newly created Outline Collection.
+    """
+    logger.info(f"Creating new domain (collection): {name}")
+    collection = await domain_service.create_domain(name=name, description=description)
+    return collection
 
-    @app.tool("taskhub.domain.create")
-    async def create_domain(ctx: Context, name: str, description: str) -> dict[str, Any]:
-        """Create a new skill domain.
-        
-        This tool allows administrators to create new skill domains in the system. In Taskhub, 
-        skills and domains are the same concept but with different names used in different contexts:
-        - "Skill" is used when referring to hunter abilities or task requirements
-        - "Domain" is used when referring to knowledge areas or categories
-        
-        All tasks, knowledge items, and hunter skills must be associated with existing skill domains.
-        
-        Use this tool when you need to introduce a new area of expertise that doesn't fit into
-        any existing skill domains. For example, if you need to create tasks or knowledge items
-        related to a new technology or field.
-        
-        Args:
-            ctx: The MCP context containing session information.
-            name: The name of the new skill domain (must be unique). This will be used as the 
-                 skill name when associating with hunters, tasks, and knowledge items.
-            description: A detailed description of what this skill domain covers.
-            
-        Returns:
-            A dictionary representation of the newly created domain object.
-            
-        Raises:
-            ValueError: If a domain with the same name already exists.
-        """
-        store = get_store(cast(RequestContext, ctx.request_context))
-        domain = await domain_create(store, name, description)
-        return domain.model_dump()
+@mcp.tool()
+async def list_domains() -> List[Dict[str, Any]]:
+    """
+    Lists all available skill domains by listing Collections from Outline.
 
-    @app.tool("taskhub.knowledge.request_research")
-    async def request_research_task(
-        ctx: Context, 
-        topic: str, 
-        required_skill: str, 
-        research_goal: str,
-        details: str | None = None
-    ) -> dict[str, Any]:
-        """Request a research task to gather missing knowledge on a specific topic.
-        
-        This tool allows hunters to publish a research task when they identify a gap in the 
-        knowledge base that prevents them from completing other tasks or improving their skills.
-        
-        When you encounter a situation where you need knowledge that doesn't exist in the system,
-        you can use this tool to create a research task. Other hunters can then take on this task
-        to gather information from external sources and add it to the knowledge base.
-        
-        The research task will be of type RESEARCH, which distinguishes it from normal tasks and
-        evaluation tasks. Research tasks should result in the creation of new knowledge items.
-        
-        Args:
-            ctx: The MCP context containing session information.
-            topic: The general topic or subject area that needs research.
-            required_skill: The skill required to perform this research. This should be a skill
-                           from existing skill domains in the system.
-            research_goal: A clear statement of what the research should accomplish.
-            details: Optional detailed information about the research requirements, sources to 
-                    consult, or specific questions that need to be answered.
-            
-        Returns:
-            A dictionary representation of the newly created research task object.
-        """
-        from taskhub.services import task_publish
-        
-        store = get_store(cast(RequestContext, ctx.request_context))
-        hunter_id = ctx.session.hunter_id
-        
-        # 构建研究任务的详细信息
-        task_details = f"""Research Task: {topic}
-        
-Goal: {research_goal}
+    Returns:
+        A list of dictionaries, each representing an Outline Collection.
+    """
+    logger.info("Listing all domains (collections).")
+    collections = await domain_service.list_domains()
+    return collections
 
-Expected Outcome: Produce a knowledge item that can be added to the knowledge base to help other hunters.
+# --- Knowledge (Document) Tools ---
 
-Details: {details or 'No additional details provided.'}
+@mcp.tool()
+async def add_knowledge(collection_id: str, title: str, content: str, parent_document_id: str = None) -> Dict[str, Any]:
+    """
+    Adds a new knowledge document to a specific Collection in Outline.
 
-Instructions:
-1. Research the topic using reliable external sources
-2. Synthesize the information into a coherent knowledge item
-3. Add the knowledge item to the system using the knowledge_add tool
-4. Include proper citations and sources in the knowledge item"""
-        
-        # 发布研究任务
-        task = await task_publish(
-            store, 
-            name=f"Research: {topic}", 
-            details=task_details, 
-            required_skill=required_skill, 
-            publisher_id=hunter_id,
-            task_type="RESEARCH"  # 明确指定任务类型为研究任务
-        )
-        
-        logger.info(f"Hunter {hunter_id} created research task {task.id} for topic: {topic}")
-        return task.model_dump()
+    Args:
+        collection_id: The ID of the collection (domain) to add the document to.
+        title: The title of the document.
+        content: The main content of the document in Markdown format.
+        parent_document_id: Optional ID of a parent document for nesting.
 
-    @app.tool("taskhub.system.get_guide")
-    async def get_system_guide_tool(ctx: Context) -> str:
-        """Retrieve the system guide for hunters.
-        
-        This tool provides hunters with a comprehensive guide to using the Taskhub system,
-        including information about available tools, workflow processes, and best practices.
-        
-        Args:
-            ctx: The MCP context containing session information.
-            
-        Returns:
-            A string containing the complete system guide.
-        """
-        await ctx.info("Hunter requested the system guide.")
-        return await get_system_guide()
+    Returns:
+        A dictionary representation of the newly created Outline document.
+    """
+    logger.info(f"Attempting to add knowledge '{title}' to collection {collection_id}")
+    document = await knowledge_service.knowledge_add(
+        collection_id=collection_id,
+        title=title,
+        content=content,
+        parent_document_id=parent_document_id
+    )
+    logger.info(f"Successfully added knowledge {document.get('id')}")
+    return document
+
+@mcp.tool()
+async def list_knowledge(collection_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    Lists knowledge documents from a specific Collection in Outline.
+
+    Args:
+        collection_id: The ID of the collection (domain) to list documents from.
+        limit: The maximum number of documents to return.
+
+    Returns:
+        A list of dictionaries, each representing an Outline document.
+    """
+    logger.info(f"Listing up to {limit} documents from collection {collection_id}.")
+    documents = await knowledge_service.knowledge_list(collection_id=collection_id, limit=limit)
+    return documents
+
+@mcp.tool()
+async def search_knowledge(query: str, limit: int = 20) -> List[Dict[str, Any]]:
+    """
+    Searches for knowledge documents in the Outline knowledge base.
+
+    Args:
+        query: The search query string.
+        limit: Maximum number of results to return.
+
+    Returns:
+        A list of search result objects from Outline.
+    """
+    logger.info(f"Searching knowledge for: {query}")
+    results = await knowledge_service.knowledge_search(query=query, limit=limit)
+    return results
+
+@mcp.tool()
+async def get_knowledge(document_id: str) -> Dict[str, Any]:
+    """
+    Retrieves a specific knowledge document from Outline by its ID.
+
+    Args:
+        document_id: The ID of the document to retrieve.
+
+    Returns:
+        A dictionary representation of the requested Outline document.
+    """
+    logger.info(f"Getting knowledge for document ID: {document_id}")
+    document = await knowledge_service.knowledge_get(document_id=document_id)
+    return document
+
+@mcp.tool()
+async def delete_knowledge(document_id: str) -> Dict[str, bool]:
+    """
+    Deletes a knowledge document from Outline by its ID.
+
+    Args:
+        document_id: The ID of the document to delete.
+
+    Returns:
+        A dictionary indicating whether the deletion was successful.
+    """
+    logger.info(f"Deleting knowledge document ID: {document_id}")
+    success = await knowledge_service.knowledge_delete(document_id=document_id)
+    return {"success": success}
+
+@mcp.tool()
+async def answer_question(document_id: str, question: str) -> Dict[str, Any]:
+    """
+    Asks a question about a specific document and gets an AI-generated answer.
+
+    Args:
+        document_id: The ID of the document to ask the question about.
+        question: The specific question to ask.
+
+    Returns:
+        A dictionary containing the answer and related information from Outline.
+    """
+    logger.info(f"Asking question about document {document_id}: '{question}'")
+    answer = await knowledge_service.knowledge_answer_question(
+        document_id=document_id, query=question
+    )
+    return answer
+
+@mcp.tool()
+async def update_knowledge(document_id: str, title: str = None, content: str = None) -> Dict[str, Any]:
+    """
+    Updates an existing knowledge document in Outline.
+
+    Args:
+        document_id: The ID of the document to update.
+        title: The new title for the document (optional).
+        content: The new content for the document in Markdown format (optional).
+
+    Returns:
+        A dictionary representation of the updated Outline document.
+    """
+    if not title and not content:
+        raise ValueError("Either 'title' or 'content' must be provided to update a document.")
+
+    logger.info(f"Updating document {document_id}...")
+    updated_document = await knowledge_service.knowledge_update(
+        document_id=document_id, title=title, content=content
+    )
+    return updated_document
+

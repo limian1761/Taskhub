@@ -7,7 +7,7 @@ from taskhub.storage.sqlite_store import SQLiteStore
 from taskhub.services import (
     hunter_register,
     hunter_study,
-    domain_create,
+    create_domain,
     knowledge_add,
 )
 
@@ -25,7 +25,7 @@ async def db() -> AsyncGenerator[SQLiteStore, None]:
 async def test_domain_and_knowledge_creation(db: SQLiteStore):
     domain_name = "Data Science"
     domain_description = "Knowledge about data science."
-    domain = await domain_create(db, domain_name, domain_description)
+        domain = await create_domain(db, domain_name, domain_description)
     assert domain is not None
     assert domain.name == domain_name
 
@@ -54,7 +54,7 @@ async def test_domain_and_knowledge_creation(db: SQLiteStore):
 async def test_hunter_study(db: SQLiteStore):
     # 传递一个字典而不是列表作为skills参数
     hunter = await hunter_register(db, "test-hunter", {"python": 50})
-    domain = await domain_create(db, "Machine Learning", "ML concepts.")
+        domain = await create_domain(db, "Machine Learning", "ML concepts.")
     knowledge = await knowledge_add(db, "Scikit-learn", "...", "web", [domain.name], "admin")
 
     updated_hunter = await hunter_study(db, hunter.id, knowledge.id)

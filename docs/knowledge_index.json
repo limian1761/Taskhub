@@ -1,0 +1,76 @@
+{
+  "mcp": {
+    "title": "MCP技术栈",
+    "description": "Model Context Protocol相关技术文档和最佳实践 - 完整学习路径和实战指南",
+    "documents": [
+      {
+        "id": "mcp-001",
+        "title": "MCP学习指南",
+        "file": "mcp_learning_guide.md",
+        "tags": ["mcp", "protocol", "basics", "introduction", "fundamentals", "architecture"],
+        "created_at": "2025-08-10T14:45:00Z",
+        "updated_at": "2025-08-10T15:30:00Z",
+        "description": "MCP协议基础概念、架构、通信模式、快速入门和调试技巧的完整学习指南",
+        "priority": "high",
+        "type": "guide"
+      },
+      {
+        "id": "mcp-002",
+        "title": "MCP实战教程：从入门到精通",
+        "file": "mcp_practical_tutorial.md",
+        "tags": ["mcp", "tutorial", "hands-on", "implementation", "project", "task-manager"],
+        "created_at": "2025-08-10T14:46:00Z",
+        "updated_at": "2025-08-10T15:31:00Z",
+        "description": "从零开始构建任务管理MCP服务器的完整实战教程，包含数据模型、数据库、业务逻辑和测试",
+        "priority": "high",
+        "type": "tutorial"
+      },
+      {
+        "id": "mcp-003",
+        "title": "MCP最佳实践与设计模式",
+        "file": "mcp_best_practices.md",
+        "tags": ["mcp", "best-practices", "design-patterns", "architecture", "performance", "security"],
+        "created_at": "2025-08-10T14:47:00Z",
+        "updated_at": "2025-08-10T15:32:00Z",
+        "description": "MCP开发的架构设计原则、错误处理、性能优化、安全考虑和测试策略的最佳实践",
+        "priority": "high",
+        "type": "best-practices"
+      },
+      {
+        "id": "mcp-004",
+        "title": "MCP学习路线图：从新手到专家的完整路径",
+        "file": "mcp_learning_path.md",
+        "tags": ["mcp", "learning-path", "roadmap", "progression", "skills", "certification", "milestones"],
+        "created_at": "2025-08-10T15:33:00Z",
+        "updated_at": "2025-08-10T15:35:00Z",
+        "description": "系统化的MCP学习路径，包含5个阶段、技能评估矩阵、实践项目、里程碑认证和持续学习资源",
+        "priority": "high",
+        "type": "roadmap",
+        "estimated_time": "1-2个月",
+        "difficulty": "渐进式"
+      }
+    ]
+  },
+  "taskhub": {
+    "title": "Taskhub项目",
+    "description": "Taskhub任务管理系统的技术文档",
+    "documents": [
+      {
+        "id": "taskhub-001",
+        "title": "架构概览",
+        "file": "architecture.md",
+        "tags": ["taskhub", "architecture", "overview"],
+        "created_at": "2025-08-10T14:48:00Z",
+        "description": "Taskhub系统的整体架构设计"
+      },
+      {
+        "id": "taskhub-002",
+        "title": "知识库集成指南",
+        "file": "knowledge_base_integration.md",
+        "tags": ["taskhub", "knowledge-base", "integration", "outline"],
+        "created_at": "2025-08-10T15:00:00Z",
+        "description": "知识库连接和本地知识管理方案"
+      }
+    ]
+  }
+}
