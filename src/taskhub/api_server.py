@@ -45,8 +45,10 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
-# Initialize templates
-templates = Jinja2Templates(directory="src/taskhub/templates")
+# Initialize templates - 使用绝对路径确保能找到模板文件
+base_dir = Path(__file__).parent
+templates_dir = base_dir / "templates"
+templates = Jinja2Templates(directory=str(templates_dir))
 
 # --- Pydantic Models ---
 class DiscussionPostRequest(BaseModel):

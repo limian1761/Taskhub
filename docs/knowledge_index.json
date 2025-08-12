@@ -72,5 +72,27 @@
         "description": "知识库连接和本地知识管理方案"
       }
     ]
+  },
+  "outline_api": {
+    "title": "Outline API",
+    "description": "Outline知识库API完整文档和集成指南",
+    "documents": [
+      {
+        "id": "outline-001",
+        "title": "Outline API知识库",
+        "file": "outline_api_knowledge.md",
+        "tags": ["outline", "api", "documentation", "authentication", "endpoints", "best-practices"],
+        "created_at": "2025-08-11T10:00:00Z",
+        "description": "Outline官方API完整文档，包括认证方式、端点说明、错误处理、速率限制和最佳实践"
+      },
+      {
+        "id": "outline-002",
+        "title": "Outline API集成示例",
+        "file": "outline_integration_examples.md",
+        "tags": ["outline", "api", "integration", "examples", "python", "async", "taskhub"],
+        "created_at": "2025-08-11T10:15:00Z",
+        "description": "在Taskhub项目中集成Outline API的实际代码示例，包含文档管理、集合操作、错误处理和批量操作"
+      }
+    ]
   }
 }

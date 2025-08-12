@@ -15,8 +15,8 @@
     "cleanup_interval": 300
   },
   "outline": {
-    "url": "http://localhost:3000",
-    "api_key": "ol_api_A05zlsTjsQ0Fb702Cd5WwfPN1j3FKGvg2YKhsc"
+    "url": "https://outline.cpolar.io",
+    "api_key": "ol_api_Wb0VDEIzPFcMi0K8erxz8pqUdWxD99uHjHT1pX"
   }
 
 
