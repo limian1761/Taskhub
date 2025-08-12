@@ -1,6 +1,6 @@
 """
-Taskhub CLI入口点
-允许通过 python -m taskhub 直接运行
+Taskhub CLI entry point
+Allows direct execution via python -m taskhub
 """
 
 from taskhub.cli import main

@@ -30,16 +30,16 @@ DEFAULT_CONFIG = {
         "default_namespace": "default"
     },
     "workflow": {
-        "evaluation_task_timeout_hours": 24  # 超时时间（小时）
+        "evaluation_task_timeout_hours": 24  # Timeout in hours
     },
     "llm": {
-        "api_key": "your_default_key_for_dev",  # 在实际使用中应通过环境变量设置
+        "api_key": "your_default_key_for_dev",  # Should be set via environment variables in production
         "model_name": "gpt-3.5-turbo"
     },
     "outline": {
-        "url": "http://localhost:3000",  # Outline实例URL
-        "api_key": "your_outline_api_key",  # Outline API密钥
-        "collection_id": "your_collection_id"  # 默认集合ID
+        "url": "http://localhost:3000",  # Outline instance URL
+        "api_key": "your_outline_api_key",  # Outline API key
+        "collection_id": "your_collection_id"  # Default collection ID
     },
     "defaults": {
         "hunter_id": "unknown"
