@@ -2,7 +2,6 @@
 .git
 .gitignore
 .vscode
-*.md
 configs/
 test/
 scripts/

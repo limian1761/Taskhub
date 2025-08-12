@@ -1,55 +1,16 @@
 version: '3.8'
 
-# Taskhub & Outline Docker Compose Setup
+# Outline Docker Compose Setup
 #
-# This file orchestrates the deployment of two main applications:
-# 1. Taskhub: The core task management and agent coordination server.
-# 2. Outline: An external, professional knowledge base.
+# This file orchestrates the deployment of Outline, a professional knowledge base.
 #
 services:
-  # --- Taskhub API Service ---
-  # This service runs the FastAPI web server for the management UI and REST API.
-  taskhub-api:
-    build: .
-    ports:
-      - "8001:8001"
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./configs:/app/configs:ro
-      - ./src:/app/src
-    environment:
-      - PYTHONPATH=/app
-      - PYTHONWARNINGS=ignore::DeprecationWarning
-    command: python -m taskhub cli api --host 0.0.0.0 --port 8001
-    restart: unless-stopped
-    depends_on:
-      - outline-postgres
-
-  # --- Taskhub MCP Service ---
-  # This service runs the core FastMCP agent server.
-  taskhub-mcp:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: taskhub_mcp_server
-    ports:
-      - "8000:8000"  # Expose the MCP server port
-    volumes:
-      - .:/app
-    environment:
-      - PYTHONPATH=/app/src
-      - PYTHONWARNINGS=ignore::DeprecationWarning
-      - OUTLINE_URL=${OUTLINE_URL}
-      - OUTLINE_API_TOKEN=${OUTLINE_API_TOKEN}
-    command: python -m taskhub cli mcp --host 0.0.0.0 --port 8000 --transport streamable-http
-
   # --- Outline Knowledge Base Services ---
   # These services are required to run the Outline wiki.
   outline:
     image: docker.getoutline.com/outlinewiki/outline:latest
     ports:
-      - "9000:3000" # Expose Outline on host port 9000
+      - '9000:3000' # Expose Outline on host port 9000
     env_file: ./outline.env
     volumes:
       - outline-storage-data:/var/lib/outline/data
@@ -60,8 +21,17 @@ services:
 
   outline-redis:
     image: redis:7-alpine
+    env_file: ./outline.env
+    expose:
+      - "6379"
     volumes:
-      - outline-redis-data:/data
+      - ./redis.conf:/redis.conf
+    command: ["redis-server", "/redis.conf"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 30s
+      retries: 3
     restart: unless-stopped
 
   outline-postgres:
@@ -69,10 +39,43 @@ services:
     volumes:
       - outline-database-data:/var/lib/postgresql/data
     env_file: ./outline.env
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "outline", "-U", "user"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      POSTGRES_USER: 'user'
+      POSTGRES_PASSWORD: 'pass'
+      POSTGRES_DB: 'outline'
     restart: unless-stopped
+
+  https-portal:
+    image: steveltn/https-portal
+    env_file: ./outline.env
+    ports:
+      - '80:80'
+      - '443:443'
+    links:
+      - outline
+    restart: always
+    volumes:
+      - https-portal-data:/var/lib/https-portal
+    healthcheck:
+      test: ["CMD", "service", "nginx", "status"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    environment:
+      DOMAINS: 'http://localhost:9000->http://outline.cpolar.io'
+      STAGE: 'production'
+      WEBSOCKET: 'true'
+      CLIENT_MAX_BODY_SIZE: '0'
 
 volumes:
   # Named volumes for Outline data persistence.
+  https-portal-data:
   outline-storage-data:
-  outline-redis-data:
   outline-database-data:

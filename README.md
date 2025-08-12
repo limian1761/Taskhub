@@ -55,48 +55,65 @@ Taskhub 现在采用分离的服务架构，将 API 服务和 MCP 服务分别�
 -   **自动化工作流**: 支持任务完成后自动触发评价、超时任务自动升级或重新分配等机制。
 -   **Web UI**: 直观的管理界面，用于查看系统状态、任务列表和代理活动。
 
-## Docker 快速启动 (推荐)
+---
 
-使用 Docker Compose 是启动所有服务的推荐方式。
+## 使用 Docker 部署 Outline 知识库
+
+本项目包含一个独立的 `docker-compose.yml` 文件，专门用于快速部署 Outline 知识库。
 
 ### 1. 环境配置
 
-在项目根目录创建一个 `outline.env` 文件，用于配置 Outline 服务。
+在项目根目录中，复制或重命名 `outline.env.example` 为 `outline.env`，并根据您的环境修改以下关键配置：
 
 ```env
-# outline.env - Configuration for Outline Service
-UTILS_SECRET=CHANGEME_RANDOM_SECRET_STRING_1
-SECRET_KEY=CHANGEME_RANDOM_SECRET_STRING_2
+# outline.env - Outline 服务核心配置
+
+# 您的 Outline 实例的公开访问 URL。
+# 如果您在本地测试，请使用 http://localhost:9000
+# 如果您使用 cpolar 等隧道工具，请使用您的公开域名，例如 http://your-domain.com
 URL=http://localhost:9000
-POSTGRES_USER=outline
-POSTGRES_PASSWORD=outline
-POSTGRES_DB=outline
-POSTGRES_HOST=outline-postgres
-REDIS_URL=redis://outline-redis:6379
+
+# 生成两个强随机密钥，可以使用 `openssl rand -hex 32` 命令生成
+SECRET_KEY=CHANGEME_YOUR_RANDOM_SECRET_KEY_1
+UTILS_SECRET=CHANGEME_YOUR_RANDOM_SECRET_KEY_2
+
+# 至少配置一种登录方式，否则无法登录 Outline。
+# 以 Slack 为例，您需要去 Slack API 控制台创建一个应用，并获取凭证。
+SLACK_CLIENT_ID=YOUR_SLACK_CLIENT_ID
+SLACK_CLIENT_SECRET=YOUR_SLACK_CLIENT_SECRET
+
+# 如果在本地或没有配置 SSL 的情况下运行，请取消注释此行以禁用 HTTPS
+PGSSLMODE=disable
 ```
-> **[!] 重要**: 在启动前，您必须将 `CHANGEME...` 的值替换为您自己生成的、长度至少为32位的强随机字符串。
 
-### 2. 启动服务
+> **[!] 重要**:
+> *   **必须**配置至少一种登录方式（如 Slack, Google, Microsoft）。
+> *   **必须**将 `CHANGEME...` 的值替换为您自己生成的、长度至少为32位的强随机字符串。
 
-在项目根目录下打开终端，运行以下命令：
+### 2. 更新 Slack 应用的重定向 URI
+
+如果您使用 Slack 登录，您必须在 [Slack API 控制台](https://api.slack.com/apps) 中，将您的重定向 URI 添加到应用的 "OAuth & Permissions" -> "Redirect URLs" 中。
+
+这个 URI 必须与您在 `outline.env` 中配置的 `URL` 完全匹配，并以 `/auth/slack.callback` 结尾。例如：
+`http://localhost:9000/auth/slack.callback` 或 `http://your-domain.com/auth/slack.callback`
+
+### 3. 启动服务
+
+完成配置后，在项目根目录下运行以下命令：
 
 ```bash
-docker-compose up --build -d
+docker-compose up -d
 ```
 
-此命令将以后台模式构建并启动所有服务。
+此命令将以后台模式启动 Outline、PostgreSQL 和 Redis 服务。
 
-### 3. 访问服务
+### 4. 访问服务
 
-服务完全启动后，您可以通过以下地址访问：
+服务启动后，您可以通过在 `outline.env` 中配置的 `URL` 地址（例如 `http://localhost:9000`）来访问您的 Outline 知识库。
 
--   **Taskhub API 服务 (Web UI)**: `http://localhost:8001`
--   **Taskhub MCP 服务**: `http://localhost:8000`
--   **Outline 知识库**: `http://localhost:9000`
+---
 
-> **注意**: 首次启动后，请务必先访问 Outline 的地址 (`http://localhost:9000`) 来完成初始化设置。
-
-## 本地开发启动
+## 本地开发启动 (Taskhub)
 
 对于本地开发，我们提供了便捷的启动脚本，它会启动分离的 API 服务和 MCP 服务。
 
